@@ -3,6 +3,7 @@ import AdminProductList from './AdminProductList';
 import AdminProductModal from './AdminProductModal';
 import AdminBannerManager from './AdminBannerManager';
 import AdminSettings from './AdminSettings';
+import AdminPaymentSettings from './AdminPaymentSettings';
 import AdminCRM from './AdminCRM';
 import AdminReviewsManager from './AdminReviewsManager';
 import { STORE_INFO } from '../../data/banners';
@@ -16,7 +17,8 @@ import {
   ShieldCheck,
   Check,
   Users,
-  Star
+  Star,
+  CreditCard
 } from 'lucide-react';
 
 export default function AdminDashboard({
@@ -35,9 +37,11 @@ export default function AdminDashboard({
   onUpdateOrderNotes,
   onDeleteOrder,
   onClearAllOrders,
-  onSeedDemoOrders
+  onSeedDemoOrders,
+  paymentSettings,
+  onSavePaymentSettings
 }) {
-  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'banners' | 'config'
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'banners' | 'reviews' | 'pagamentos' | 'config'
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
@@ -198,6 +202,18 @@ export default function AdminDashboard({
             </button>
 
             <button
+              onClick={() => setActiveTab('pagamentos')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                activeTab === 'pagamentos'
+                  ? 'bg-brand-rose text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Pagamentos</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('config')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                 activeTab === 'config'
@@ -262,6 +278,16 @@ export default function AdminDashboard({
 
         {activeTab === 'reviews' && (
           <AdminReviewsManager products={products} />
+        )}
+
+        {activeTab === 'pagamentos' && (
+          <AdminPaymentSettings
+            paymentSettings={paymentSettings}
+            onSavePaymentSettings={(updated) => {
+              onSavePaymentSettings(updated);
+              showToast('Formas de pagamento e descontos atualizados!');
+            }}
+          />
         )}
 
         {activeTab === 'config' && (

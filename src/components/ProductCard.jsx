@@ -3,12 +3,14 @@ import { ShoppingBag, Eye, Heart, Check, Star, Play } from 'lucide-react';
 import { formatBRL } from '../utils/masks';
 import { isVideoMedia } from '../utils/media';
 import { getProductRatingStats } from '../data/reviews';
+import { calculatePixPrice, calculateInstallments } from '../data/paymentSettings';
 
 export default function ProductCard({
   product,
   onQuickView,
   onAddToCart,
-  onOpenProduct
+  onOpenProduct,
+  paymentSettings
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [addedAnim, setAddedAnim] = useState(false);
@@ -172,15 +174,27 @@ export default function ProductCard({
             </span>
 
             {/* Pix Discount */}
-            <div className="text-xs text-brand-pix font-medium mt-0.5 flex items-center gap-1">
-              <span>{product.pix_price}</span>
-              <span className="text-[10px] text-gray-300">com Pix</span>
-            </div>
+            {paymentSettings?.pix?.enabled !== false ? (
+              <div className="text-xs text-brand-pix font-medium mt-0.5 flex items-center gap-1">
+                <span>
+                  {paymentSettings
+                    ? formatBRL(calculatePixPrice(product.price_number, paymentSettings))
+                    : (product.pix_price || formatBRL(product.price_number * 0.99))}
+                </span>
+                <span className="text-[10px] text-gray-300">
+                  com Pix {paymentSettings?.pix?.discountPercent > 0 ? `(${paymentSettings.pix.discountPercent}% OFF)` : ''}
+                </span>
+              </div>
+            ) : null}
 
             {/* Installments */}
-            <div className="text-[11px] text-gray-400 mt-0.5">
-              {product.installments}
-            </div>
+            {paymentSettings?.creditCard?.enabled !== false && (
+              <div className="text-[11px] text-gray-400 mt-0.5">
+                {paymentSettings
+                  ? calculateInstallments(product.price_number, paymentSettings)
+                  : product.installments}
+              </div>
+            )}
           </div>
         </div>
 

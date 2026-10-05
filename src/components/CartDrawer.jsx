@@ -13,7 +13,8 @@ export default function CartDrawer({
   onRemoveItem,
   onProceedToCheckout,
   appliedCoupon,
-  onApplyCoupon
+  onApplyCoupon,
+  paymentSettings
 }) {
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -25,22 +26,42 @@ export default function CartDrawer({
     0
   );
 
-  const discountAmount = appliedCoupon ? subtotal * appliedCoupon.discount : 0;
-  const total = subtotal - discountAmount;
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.type === 'fixed'
+      ? Math.min(subtotal, appliedCoupon.value)
+      : subtotal * ((appliedCoupon.value || 0) / 100 || (appliedCoupon.discount || 0))
+    : 0;
+
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleApplyCoupon = (e) => {
     e.preventDefault();
     setCouponError('');
     const code = couponCode.trim().toUpperCase();
-    if (code === 'BEMVINDA10' || code === 'PRIMEIRACOMPRA') {
-      onApplyCoupon({ code, discount: 0.10, name: '10% de Desconto Boas-Vindas' });
+    if (!code) return;
+
+    const availableCoupons = paymentSettings?.coupons || [];
+    const found = availableCoupons.find((c) => c.code.toUpperCase() === code && c.active);
+
+    if (found) {
+      if (found.minOrder > 0 && subtotal < found.minOrder) {
+        setCouponError(`Este cupom requer pedido mínimo de ${formatBRL(found.minOrder)}`);
+        return;
+      }
+      onApplyCoupon({
+        code: found.code,
+        type: found.type,
+        value: found.value,
+        name: found.description || `${found.value}${found.type === 'percent' ? '%' : ' R$'} OFF`
+      });
       setCouponCode('');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-    } else if (code === 'MILLANY5') {
-      onApplyCoupon({ code, discount: 0.05, name: '5% de Desconto VIP' });
+    } else if (code === 'BEMVINDA10' || code === 'PRIMEIRACOMPRA') {
+      onApplyCoupon({ code, type: 'percent', value: 10, name: '10% de Boas-Vindas' });
       setCouponCode('');
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
     } else {
-      setCouponError('Cupom inválido. Tente BEMVINDA10');
+      setCouponError('Cupom inválido ou expirado.');
     }
   };
 
@@ -187,8 +208,20 @@ export default function CartDrawer({
 
               {appliedCoupon && (
                 <div className="flex items-center justify-between text-xs text-emerald-400 bg-emerald-950/40 p-2 rounded border border-emerald-900/50">
-                  <span>Cupom: <strong>{appliedCoupon.code}</strong> ({appliedCoupon.name})</span>
-                  <span className="font-bold">-{formatBRL(discountAmount)}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span>Cupom: <strong>{appliedCoupon.code}</strong> ({appliedCoupon.name})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">-{formatBRL(discountAmount)}</span>
+                    <button
+                      type="button"
+                      onClick={() => onApplyCoupon(null)}
+                      className="text-gray-400 hover:text-red-400 font-bold px-1"
+                      title="Remover cupom"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -204,7 +237,7 @@ export default function CartDrawer({
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-400">
-                    <span>Desconto</span>
+                    <span>Desconto ({appliedCoupon.code})</span>
                     <span>-{formatBRL(discountAmount)}</span>
                   </div>
                 )}
@@ -212,6 +245,12 @@ export default function CartDrawer({
                   <span>Total</span>
                   <span className="text-brand-rose-light">{formatBRL(total)}</span>
                 </div>
+                {paymentSettings?.pix?.enabled !== false && (paymentSettings?.pix?.discountPercent || 0) > 0 && (
+                  <div className="flex justify-between text-xs text-brand-pix font-medium pt-1">
+                    <span>No Pix ({paymentSettings.pix.discountPercent}% OFF)</span>
+                    <span>{formatBRL(total * (1 - (paymentSettings.pix.discountPercent || 0) / 100))}</span>
+                  </div>
+                )}
               </div>
 
               {/* Checkout Button */}

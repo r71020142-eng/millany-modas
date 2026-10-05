@@ -4,12 +4,14 @@ import { formatBRL, maskCEP, fetchAddressByCEP } from '../utils/masks';
 import { isVideoMedia } from '../utils/media';
 import ShopeeReviews from './reviews/ShopeeReviews';
 import { getProductRatingStats } from '../data/reviews';
+import { calculatePixPrice, calculateInstallments } from '../data/paymentSettings';
 
 export default function ProductQuickView({
   product,
   onClose,
   onAddToCart,
-  onBuyNow
+  onBuyNow,
+  paymentSettings
 }) {
   if (!product) return null;
 
@@ -201,16 +203,28 @@ export default function ProductQuickView({
                   {product.price || formatBRL(product.price_number)}
                 </span>
                 
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-sm font-semibold text-brand-pix">
-                    {product.pix_price}
-                  </span>
-                  <span className="text-xs text-gray-300">com Pix (1% de desconto)</span>
-                </div>
+                {paymentSettings?.pix?.enabled !== false && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-brand-pix">
+                      {paymentSettings
+                        ? formatBRL(calculatePixPrice(product.price_number, paymentSettings))
+                        : (product.pix_price || formatBRL(product.price_number * 0.99))}
+                    </span>
+                    <span className="text-xs text-gray-300">
+                      com Pix {paymentSettings?.pix?.discountPercent > 0 ? `(${paymentSettings.pix.discountPercent}% de desconto)` : ''}
+                    </span>
+                  </div>
+                )}
 
-                <p className="text-xs text-gray-400 mt-1">
-                  Ou em até <strong className="text-gray-200">{product.installments}</strong>
-                </p>
+                {paymentSettings?.creditCard?.enabled !== false && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Ou em até <strong className="text-gray-200">
+                      {paymentSettings
+                        ? calculateInstallments(product.price_number, paymentSettings)
+                        : product.installments}
+                    </strong>
+                  </p>
+                )}
               </div>
 
               {/* Colors */}

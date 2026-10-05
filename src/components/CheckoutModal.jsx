@@ -37,9 +37,15 @@ export default function CheckoutModal({
   cartItems,
   appliedCoupon,
   onClearCart,
-  onSaveOrderToCRM
+  onSaveOrderToCRM,
+  paymentSettings
 }) {
   if (!isOpen) return null;
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(
+    paymentSettings?.pix?.enabled !== false ? 'pix' : 'creditCard'
+  );
+  const [copiedPixKey, setCopiedPixKey] = useState(false);
 
   // Countdown timer for urgency (15 mins)
   const [timeLeft, setTimeLeft] = useState(15 * 60);
@@ -108,8 +114,21 @@ export default function CheckoutModal({
     (sum, item) => sum + (item.price_number || 0) * (item.quantity || 1),
     0
   );
-  const discountAmount = appliedCoupon ? subtotal * appliedCoupon.discount : 0;
-  const total = subtotal - discountAmount;
+
+  const couponDiscountAmount = appliedCoupon
+    ? appliedCoupon.type === 'fixed'
+      ? Math.min(subtotal, appliedCoupon.value)
+      : subtotal * ((appliedCoupon.value || 0) / 100 || (appliedCoupon.discount || 0))
+    : 0;
+
+  const pixDiscountPercent =
+    selectedPaymentMethod === 'pix' && paymentSettings?.pix?.enabled !== false
+      ? paymentSettings?.pix?.discountPercent || 0
+      : 0;
+
+  const pixDiscountAmount = ((subtotal - couponDiscountAmount) * pixDiscountPercent) / 100;
+  const discountAmount = couponDiscountAmount + pixDiscountAmount;
+  const total = Math.max(0, subtotal - discountAmount);
 
   // Validation
   const validate = () => {
@@ -157,7 +176,12 @@ export default function CheckoutModal({
         discount: discountAmount,
         shipping: 0,
         total,
-        paymentMethod: 'WhatsApp'
+        paymentMethod:
+          selectedPaymentMethod === 'pix'
+            ? `Pix (${pixDiscountPercent > 0 ? `${pixDiscountPercent}% OFF` : 'Sem desconto'})`
+            : selectedPaymentMethod === 'creditCard'
+            ? `Cartão de Crédito (até ${paymentSettings?.creditCard?.maxInstallments || 12}x)`
+            : 'A combinar no WhatsApp'
       },
       notes: ''
     };
@@ -512,25 +536,152 @@ export default function CheckoutModal({
                   </div>
                 </div>
 
-                {/* 3. FINALIZAÇÃO NO WHATSAPP */}
-                <div className="p-5 rounded-2xl bg-black/40 border border-brand-border/80 space-y-3">
-                  <div className="flex items-center gap-2 text-brand-rose font-bold text-sm uppercase tracking-wider">
-                    <MessageCircle className="w-4 h-4 text-brand-whatsapp" /> 3. Finalização Direta no WhatsApp
+                {/* 3. FORMA DE PAGAMENTO & FINALIZAÇÃO */}
+                <div className="p-5 rounded-2xl bg-black/40 border border-brand-border/80 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-brand-rose font-bold text-sm uppercase tracking-wider">
+                      <CreditCard className="w-4 h-4 text-brand-rose" /> 3. Forma de Pagamento
+                    </div>
+                    <span className="text-[11px] text-gray-400">Escolha como prefere pagar</span>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-800/40 text-xs text-gray-300 space-y-2.5">
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald-400 font-bold shrink-0 text-sm">✓</span>
-                      <span>Seus dados de contato e endereço de entrega serão registrados com total segurança.</span>
+                  {/* Payment Methods Selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    
+                    {/* Opção Pix */}
+                    {paymentSettings?.pix?.enabled !== false && (
+                      <div
+                        onClick={() => setSelectedPaymentMethod('pix')}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                          selectedPaymentMethod === 'pix'
+                            ? 'bg-brand-pix/10 border-brand-pix text-white ring-1 ring-brand-pix/40'
+                            : 'bg-black/40 border-brand-border hover:border-gray-500 text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 font-bold text-xs">
+                            <QrCode className="w-4 h-4 text-brand-pix" />
+                            <span>Pix Instantâneo</span>
+                          </div>
+                          {(paymentSettings?.pix?.discountPercent || 0) > 0 && (
+                            <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/30">
+                              {paymentSettings.pix.discountPercent}% OFF
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400">
+                          Aprovação imediata e desconto de {paymentSettings?.pix?.discountPercent || 1}% aplicado no pedido.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Opção Cartão de Crédito */}
+                    {paymentSettings?.creditCard?.enabled !== false && (
+                      <div
+                        onClick={() => setSelectedPaymentMethod('creditCard')}
+                        className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                          selectedPaymentMethod === 'creditCard'
+                            ? 'bg-blue-500/10 border-blue-500 text-white ring-1 ring-blue-500/40'
+                            : 'bg-black/40 border-brand-border hover:border-gray-500 text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 font-bold text-xs">
+                            <CreditCard className="w-4 h-4 text-blue-400" />
+                            <span>Cartão de Crédito</span>
+                          </div>
+                          <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-blue-500/30">
+                            Até {paymentSettings?.creditCard?.maxInstallments || 12}x
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400">
+                          Parcelamento em até {paymentSettings?.creditCard?.maxInstallments || 12}x ({paymentSettings?.creditCard?.interestFreeInstallments || 3}x sem juros).
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informações detalhadas do Pix */}
+                  {selectedPaymentMethod === 'pix' && paymentSettings?.pix?.enabled !== false && (
+                    <div className="p-4 rounded-xl bg-brand-pix/10 border border-brand-pix/30 space-y-3 animate-fadeIn text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-brand-pix flex items-center gap-1.5">
+                          <QrCode className="w-4 h-4" /> Dados para Pagamento via Pix:
+                        </span>
+                        {pixDiscountPercent > 0 && (
+                          <span className="text-emerald-400 font-bold">
+                            Economia de {formatBRL(pixDiscountAmount)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-black/60 rounded-lg border border-brand-border space-y-1.5 font-mono text-[11px]">
+                        <div className="flex items-center justify-between text-gray-300">
+                          <span>Tipo: <strong className="text-white font-sans">{paymentSettings?.pix?.keyType || 'Telefone'}</strong></span>
+                          <span>Banco: <strong className="text-white font-sans">{paymentSettings?.pix?.bank || 'Nubank'}</strong></span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className="text-white font-bold text-xs break-all">
+                            {paymentSettings?.pix?.key || '31986570126'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(paymentSettings?.pix?.key || '31986570126');
+                              setCopiedPixKey(true);
+                              setTimeout(() => setCopiedPixKey(false), 2000);
+                            }}
+                            className="px-2.5 py-1 bg-brand-pix hover:bg-brand-pix/80 text-black text-[10px] font-bold uppercase rounded transition-colors flex items-center gap-1 shrink-0 ml-2"
+                          >
+                            {copiedPixKey ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedPixKey ? 'Copiado!' : 'Copiar Chave'}</span>
+                          </button>
+                        </div>
+                        {paymentSettings?.pix?.recipient && (
+                          <p className="text-[10px] text-gray-400 pt-0.5">
+                            Titular: {paymentSettings.pix.recipient}
+                          </p>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-gray-300">
+                        {paymentSettings?.pix?.instructions ||
+                          'Ao concluir, enviaremos os dados confirmados com comprovante direto no WhatsApp da loja.'}
+                      </p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald-400 font-bold shrink-0 text-sm">✓</span>
-                      <span>Ao clicar em <strong>"CONCLUIR E ENVIAR NO WHATSAPP"</strong>, você será direcionada para o WhatsApp oficial com a mensagem pronta contendo os itens, tamanhos, cores e endereço de entrega.</span>
+                  )}
+
+                  {/* Informações detalhadas do Cartão */}
+                  {selectedPaymentMethod === 'creditCard' && paymentSettings?.creditCard?.enabled !== false && (
+                    <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-800/40 space-y-3 animate-fadeIn text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-blue-300 flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-blue-400" /> Pagamento com Cartão de Crédito
+                        </span>
+                        <span className="text-gray-300 text-[11px]">
+                          Até {paymentSettings?.creditCard?.interestFreeInstallments || 3}x sem juros
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-gray-300">
+                        {paymentSettings?.creditCard?.instructions ||
+                          'O link de pagamento seguro ou máquina de cartão será disponibilizado no atendimento no WhatsApp.'}
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-1 border-t border-white/5 flex-wrap">
+                        <span className="text-[10px] text-gray-400">Bandeiras:</span>
+                        {(paymentSettings?.creditCard?.acceptedBrands || ['Visa', 'Mastercard', 'Elo', 'Hipercard', 'Amex']).map((b) => (
+                          <span key={b} className="px-2 py-0.5 bg-black/60 rounded text-[10px] text-gray-300 border border-white/10">
+                            {b}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald-400 font-bold shrink-0 text-sm">✓</span>
-                      <span>A forma de pagamento (Pix ou Cartão) e os detalhes de envio serão combinados diretamente com a nossa equipe de atendimento.</span>
-                    </div>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/40 text-xs text-gray-300 flex items-start gap-2">
+                    <span className="text-emerald-400 font-bold shrink-0 text-sm">✓</span>
+                    <span>Ao clicar em <strong>"CONCLUIR E ENVIAR NO WHATSAPP"</strong>, o pedido com todos os itens, endereço e a forma de pagamento selecionada será enviado diretamente para a nossa equipe.</span>
                   </div>
                 </div>
               </div>
@@ -581,10 +732,17 @@ export default function CheckoutModal({
                       <span>{formatBRL(subtotal)}</span>
                     </div>
 
-                    {appliedCoupon && (
+                    {couponDiscountAmount > 0 && (
                       <div className="flex justify-between text-emerald-400">
-                        <span>Cupom ({appliedCoupon.code})</span>
-                        <span>-{formatBRL(discountAmount)}</span>
+                        <span>Cupom ({appliedCoupon?.code})</span>
+                        <span>-{formatBRL(couponDiscountAmount)}</span>
+                      </div>
+                    )}
+
+                    {pixDiscountAmount > 0 && (
+                      <div className="flex justify-between text-brand-pix">
+                        <span>Desconto no Pix ({pixDiscountPercent}% OFF)</span>
+                        <span>-{formatBRL(pixDiscountAmount)}</span>
                       </div>
                     )}
 

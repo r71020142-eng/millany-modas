@@ -92,9 +92,9 @@ ${itemsList}
 💰 *RESUMO DO PEDIDO*
 • *Subtotal:* ${formatBRL(financial.subtotal)}${discountLine}
 • *TOTAL:* ${formatBRL(financial.total)}
-• *Pagamento e Envio:* A combinar no WhatsApp
+• *Forma de Pagamento:* ${financial.paymentMethod || 'A combinar no WhatsApp'}
 
-Olá Millany Modas! Registrei meus dados e pedido no site. Aguardo orientações para combinar o pagamento e envio! ✨`;
+Olá Millany Modas! Registrei meus dados e pedido no site. Aguardo orientações para confirmar o pedido! ✨`;
 
   return encodeURIComponent(text);
 }

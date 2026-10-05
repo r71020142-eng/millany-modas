@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { STORE_INFO, PAYMENT_METHODS } from '../data/banners';
 import { Phone, Mail, MapPin, Send, Check } from 'lucide-react';
 
-export default function Footer({ onSelectCategory, onOpenContact, onOpenAdmin, storeInfo = STORE_INFO }) {
+export default function Footer({
+  onSelectCategory,
+  onOpenContact,
+  onOpenAdmin,
+  storeInfo = STORE_INFO,
+  paymentSettings
+}) {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSent, setNewsletterSent] = useState(false);
 
@@ -195,7 +201,17 @@ export default function Footer({ onSelectCategory, onOpenContact, onOpenAdmin, s
         {/* 3. Payment Methods Grid */}
         <div className="pt-10 mt-8 border-t border-brand-border/60 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2 flex-wrap justify-center">
-            {PAYMENT_METHODS.map((method, i) => (
+            {PAYMENT_METHODS.filter((method) => {
+              if (method.name === 'Pix' && paymentSettings?.pix?.enabled === false) return false;
+              if (method.name === 'Boleto' && paymentSettings?.boleto?.enabled === false) return false;
+              if (['Visa', 'Mastercard', 'Elo', 'Hipercard', 'Amex'].includes(method.name)) {
+                if (paymentSettings?.creditCard?.enabled === false) return false;
+                if (paymentSettings?.creditCard?.acceptedBrands && !paymentSettings.creditCard.acceptedBrands.includes(method.name)) {
+                  return false;
+                }
+              }
+              return true;
+            }).map((method, i) => (
               <img
                 key={i}
                 src={method.icon}

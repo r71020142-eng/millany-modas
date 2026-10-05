@@ -12,7 +12,8 @@ export default function Header({
   searchQuery,
   onOpenContact,
   onOpenAdmin,
-  storeInfo = STORE_INFO
+  storeInfo = STORE_INFO,
+  paymentSettings
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -25,12 +26,17 @@ export default function Header({
     window.scrollTo({ top: 500, behavior: 'smooth' });
   };
 
+  const pixText =
+    paymentSettings?.pix?.enabled !== false && (paymentSettings?.pix?.discountPercent || 0) > 0
+      ? ` • ${paymentSettings.pix.discountPercent}% OFF no Pix`
+      : '';
+
   return (
     <header className="sticky top-0 z-40 bg-black border-b border-brand-border/60">
       {/* 1. Ticker / Announcement Bar */}
       <div className="bg-brand-rose text-white text-xs font-semibold py-2 overflow-hidden border-b border-white/10 tracking-widest uppercase">
         <div className="animate-marquee whitespace-nowrap flex items-center gap-12">
-          {Array(8).fill("✨ Enviamos para todo Brasil • Atendimento e Pedidos Direto no WhatsApp • Novidades Toda Semana ✨").map((text, i) => (
+          {Array(8).fill(`✨ Enviamos para todo Brasil • Atendimento e Pedidos Direto no WhatsApp${pixText} • Novidades Toda Semana ✨`).map((text, i) => (
             <span key={i} className="inline-block px-4">{text}</span>
           ))}
         </div>

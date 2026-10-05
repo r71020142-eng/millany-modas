@@ -14,6 +14,7 @@ import AdminLoginModal from './components/admin/AdminLoginModal';
 import { PRODUCTS, CATEGORIES } from './data/products';
 import { BANNER_SLIDES, STORE_INFO } from './data/banners';
 import { INITIAL_DEMO_ORDERS } from './data/demoOrders';
+import { DEFAULT_PAYMENT_SETTINGS } from './data/paymentSettings';
 import { Sparkles, Filter, ChevronDown, Shield, Settings } from 'lucide-react';
 
 export default function App() {
@@ -53,6 +54,25 @@ export default function App() {
       return STORE_INFO;
     }
   });
+
+  // Dynamic Payment Settings State (persisted in localStorage)
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('millany_admin_payment_settings_v1');
+      return saved ? JSON.parse(saved) : DEFAULT_PAYMENT_SETTINGS;
+    } catch {
+      return DEFAULT_PAYMENT_SETTINGS;
+    }
+  });
+
+  const handleSavePaymentSettings = (updated) => {
+    setPaymentSettings(updated);
+    try {
+      localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Erro ao salvar paymentSettings:', e);
+    }
+  };
 
   // Dynamic CRM Orders State (persisted in localStorage)
   const [crmOrders, setCrmOrders] = useState(() => {
@@ -304,6 +324,8 @@ export default function App() {
         onDeleteOrder={handleDeleteOrder}
         onClearAllOrders={handleClearAllOrders}
         onSeedDemoOrders={handleSeedDemoOrders}
+        paymentSettings={paymentSettings}
+        onSavePaymentSettings={handleSavePaymentSettings}
       />
     );
   }
@@ -340,6 +362,7 @@ export default function App() {
         onOpenContact={() => setIsContactOpen(true)}
         onOpenAdmin={handleOpenAdminTrigger}
         storeInfo={storeInfo}
+        paymentSettings={paymentSettings}
       />
 
       {/* 2. Banner Carousel (Shown on Home/Todos) */}
@@ -435,6 +458,7 @@ export default function App() {
                 onQuickView={setQuickViewProduct}
                 onAddToCart={handleAddToCart}
                 onOpenProduct={setQuickViewProduct}
+                paymentSettings={paymentSettings}
               />
             ))}
           </div>
@@ -451,6 +475,7 @@ export default function App() {
           setQuickViewProduct(null);
           setIsCheckoutOpen(true);
         }}
+        paymentSettings={paymentSettings}
       />
 
       <CartDrawer
@@ -462,6 +487,7 @@ export default function App() {
         onProceedToCheckout={handleProceedToCheckout}
         appliedCoupon={appliedCoupon}
         onApplyCoupon={setAppliedCoupon}
+        paymentSettings={paymentSettings}
       />
 
       <CheckoutModal
@@ -471,6 +497,7 @@ export default function App() {
         appliedCoupon={appliedCoupon}
         onClearCart={handleClearCart}
         onSaveOrderToCRM={handleSaveOrderToCRM}
+        paymentSettings={paymentSettings}
       />
 
       <ContactModal
@@ -498,6 +525,7 @@ export default function App() {
         onOpenContact={() => setIsContactOpen(true)}
         onOpenAdmin={handleOpenAdminTrigger}
         storeInfo={storeInfo}
+        paymentSettings={paymentSettings}
       />
     </div>
   );
