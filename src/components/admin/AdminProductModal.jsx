@@ -30,7 +30,8 @@ export default function AdminProductModal({
   isOpen,
   onClose,
   productToEdit,
-  onSave
+  onSave,
+  categories = PRESET_CATEGORIES
 }) {
   if (!isOpen) return null;
 
@@ -330,9 +331,15 @@ export default function AdminProductModal({
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full bg-brand-card text-white text-xs px-3 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
                 >
-                  {PRESET_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {(() => {
+                    const list = (categories || PRESET_CATEGORIES).filter((c) => c !== 'Todos');
+                    if (formData.category && !list.includes(formData.category)) {
+                      list.unshift(formData.category);
+                    }
+                    return list.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ));
+                  })()}
                 </select>
               </div>
 

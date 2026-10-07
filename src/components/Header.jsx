@@ -6,6 +6,7 @@ import { CATEGORIES } from '../data/products';
 export default function Header({
   cartCount,
   onOpenCart,
+  categories = CATEGORIES,
   onSelectCategory,
   activeCategory,
   onSearch,
@@ -137,91 +138,31 @@ export default function Header({
         )}
 
         {/* 4. Desktop Navigation Categories Bar */}
-        <nav className="hidden lg:flex items-center justify-center space-x-6 py-2.5 border-t border-white/5 text-xs uppercase tracking-widest font-medium">
-          <button
-            onClick={() => handleCategoryClick('Todos')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Todos' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Início
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Vestidos')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Vestidos' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Vestidos
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Conjuntos')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Conjuntos' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Conjuntos
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Macacão')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Macacão' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Macacão
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Body')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Body' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Body
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Cropped')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Cropped' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Cropped
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Short/Saia')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Short/Saia' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Short / Saia
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Calça')}
-            className={`transition-colors pb-1 border-b-2 ${
-              activeCategory === 'Calça' ? 'text-brand-rose border-brand-rose' : 'text-gray-300 border-transparent hover:text-brand-gold'
-            }`}
-          >
-            Calça
-          </button>
-
-          <button
-            onClick={() => handleCategoryClick('Promoção')}
-            className={`transition-colors pb-1 border-b-2 font-bold ${
-              activeCategory === 'Promoção' ? 'text-brand-rose border-brand-rose' : 'text-brand-rose-light border-transparent hover:text-white'
-            }`}
-          >
-            🔥 Promoção
-          </button>
+        <nav className="hidden lg:flex items-center justify-center space-x-6 py-2.5 border-t border-white/5 text-xs uppercase tracking-widest font-medium overflow-x-auto scrollbar-none">
+          {categories.map((cat) => {
+            const isTodos = cat === 'Todos';
+            const label = isTodos ? 'Início' : cat === 'Promoção' ? '🔥 Promoção' : cat;
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => handleCategoryClick(cat)}
+                className={`transition-colors pb-1 border-b-2 whitespace-nowrap ${
+                  isActive
+                    ? 'text-brand-rose border-brand-rose font-bold'
+                    : cat === 'Promoção'
+                    ? 'text-brand-rose-light border-transparent hover:text-white font-bold'
+                    : 'text-gray-300 border-transparent hover:text-brand-gold'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
 
           <button
             onClick={onOpenContact}
-            className="text-gray-400 hover:text-brand-gold transition-colors pb-1 border-b-2 border-transparent"
+            className="text-gray-400 hover:text-brand-gold transition-colors pb-1 border-b-2 border-transparent whitespace-nowrap"
           >
             Contato
           </button>
@@ -248,7 +189,7 @@ export default function Header({
               </div>
 
               <div className="mt-6 flex flex-col space-y-4 text-sm uppercase tracking-wider font-medium">
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => handleCategoryClick(cat)}
@@ -256,7 +197,7 @@ export default function Header({
                       activeCategory === cat ? 'bg-brand-rose/20 text-brand-rose font-bold' : 'text-gray-300 hover:bg-white/5'
                     }`}
                   >
-                    <span>{cat}</span>
+                    <span>{cat === 'Todos' ? 'Início' : cat}</span>
                     {cat === 'Promoção' && <span className="text-xs bg-brand-rose text-white px-2 py-0.5 rounded-full">OFF</span>}
                   </button>
                 ))}

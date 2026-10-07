@@ -105,6 +105,98 @@ export default function App() {
     }
   });
 
+  // Dynamic Categories State (persisted in localStorage)
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('millany_admin_categories_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!parsed.includes('Todos')) return ['Todos', ...parsed];
+          return parsed;
+        }
+      }
+      return CATEGORIES;
+    } catch {
+      return CATEGORIES;
+    }
+  });
+
+  const handleSaveCategories = (updatedCategories) => {
+    const sanitized = updatedCategories.includes('Todos')
+      ? ['Todos', ...updatedCategories.filter((c) => c !== 'Todos')]
+      : ['Todos', ...updatedCategories];
+    setCategories(sanitized);
+    try {
+      localStorage.setItem('millany_admin_categories_v1', JSON.stringify(sanitized));
+    } catch (e) {
+      console.error('Erro ao salvar categorias:', e);
+    }
+  };
+
+  const handleRenameCategory = (oldName, newName) => {
+    if (!oldName || !newName || oldName === newName) return;
+
+    // 1. Update categories list
+    const updatedCategories = categories.map((c) =>
+      c.toLowerCase() === oldName.toLowerCase() ? newName : c
+    );
+    handleSaveCategories(updatedCategories);
+
+    // 2. Re-assign products that belong to old category
+    setProducts((prevProducts) => {
+      const updatedProducts = prevProducts.map((p) => {
+        if (p.category?.toLowerCase() === oldName.toLowerCase()) {
+          return { ...p, category: newName };
+        }
+        return p;
+      });
+      try {
+        localStorage.setItem('millany_admin_products_v3', JSON.stringify(updatedProducts));
+      } catch (e) {
+        console.error('Erro ao atualizar produtos com nova categoria:', e);
+      }
+      return updatedProducts;
+    });
+
+    // 3. Update activeCategory if viewing renamed category
+    if (activeCategory.toLowerCase() === oldName.toLowerCase()) {
+      setActiveCategory(newName);
+    }
+  };
+
+  const handleDeleteCategory = (catToDelete, fallbackCat = 'Geral') => {
+    if (!catToDelete || catToDelete === 'Todos') return;
+
+    let updatedCategories = categories.filter(
+      (c) => c.toLowerCase() !== catToDelete.toLowerCase()
+    );
+    if (fallbackCat && fallbackCat !== 'Todos' && !updatedCategories.some((c) => c.toLowerCase() === fallbackCat.toLowerCase())) {
+      updatedCategories.push(fallbackCat);
+    }
+    handleSaveCategories(updatedCategories);
+
+    // Re-assign products to fallback category
+    setProducts((prevProducts) => {
+      const updatedProducts = prevProducts.map((p) => {
+        if (p.category?.toLowerCase() === catToDelete.toLowerCase()) {
+          return { ...p, category: fallbackCat };
+        }
+        return p;
+      });
+      try {
+        localStorage.setItem('millany_admin_products_v3', JSON.stringify(updatedProducts));
+      } catch (e) {
+        console.error('Erro ao reatribuir produtos da categoria excluída:', e);
+      }
+      return updatedProducts;
+    });
+
+    if (activeCategory.toLowerCase() === catToDelete.toLowerCase()) {
+      setActiveCategory('Todos');
+    }
+  };
+
   // Dynamic Payment Settings State (persisted in localStorage)
   const [paymentSettings, setPaymentSettings] = useState(() => {
     try {
@@ -248,12 +340,15 @@ export default function App() {
     setProducts(PRODUCTS);
     setBanners(BANNER_SLIDES);
     setStoreInfo(STORE_INFO);
+    setCategories(CATEGORIES);
     localStorage.removeItem('millany_admin_products');
     localStorage.removeItem('millany_admin_products_v2');
+    localStorage.removeItem('millany_admin_products_v3');
     localStorage.removeItem('millany_admin_banners');
     localStorage.removeItem('millany_admin_banners_v2');
     localStorage.removeItem('millany_admin_store_info');
     localStorage.removeItem('millany_admin_store_info_v2');
+    localStorage.removeItem('millany_admin_categories_v1');
   };
 
   // CRM Handlers
@@ -497,6 +592,10 @@ export default function App() {
         products={products}
         onSaveProducts={handleSaveProducts}
         onResetProducts={handleResetProducts}
+        categories={categories}
+        onSaveCategories={handleSaveCategories}
+        onRenameCategory={handleRenameCategory}
+        onDeleteCategory={handleDeleteCategory}
         banners={banners}
         onSaveBanners={handleSaveBanners}
         onResetBanners={handleResetBanners}
@@ -635,6 +734,7 @@ export default function App() {
       <Header
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
+        categories={categories}
         onSelectCategory={setActiveCategory}
         activeCategory={activeCategory}
         onSearch={setSearchQuery}
@@ -697,7 +797,7 @@ export default function App() {
 
         {/* Category Pills Bar */}
         <div className="py-4 flex gap-2 overflow-x-auto scrollbar-none">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => {

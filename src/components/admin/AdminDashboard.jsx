@@ -6,6 +6,7 @@ import AdminSettings from './AdminSettings';
 import AdminPaymentSettings from './AdminPaymentSettings';
 import AdminCRM from './AdminCRM';
 import AdminReviewsManager from './AdminReviewsManager';
+import AdminCategoriesManager from './AdminCategoriesManager';
 import { STORE_INFO } from '../../data/banners';
 import {
   ShoppingBag,
@@ -18,13 +19,18 @@ import {
   Check,
   Users,
   Star,
-  CreditCard
+  CreditCard,
+  Layers
 } from 'lucide-react';
 
 export default function AdminDashboard({
   products,
   onSaveProducts,
   onResetProducts,
+  categories = [],
+  onSaveCategories,
+  onRenameCategory,
+  onDeleteCategory,
   banners,
   onSaveBanners,
   onResetBanners,
@@ -44,7 +50,7 @@ export default function AdminDashboard({
   onSaveStoreStatus,
   onLogout
 }) {
-  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'banners' | 'reviews' | 'pagamentos' | 'config'
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'categorias' | 'banners' | 'reviews' | 'pagamentos' | 'config'
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
@@ -189,6 +195,18 @@ export default function AdminDashboard({
             </button>
 
             <button
+              onClick={() => setActiveTab('categorias')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                activeTab === 'categorias'
+                  ? 'bg-brand-rose text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Categorias</span> ({categories ? Math.max(0, categories.length - 1) : 0})
+            </button>
+
+            <button
               onClick={() => setActiveTab('banners')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                 activeTab === 'banners'
@@ -316,6 +334,8 @@ export default function AdminDashboard({
         {activeTab === 'produtos' && (
           <AdminProductList
             products={products}
+            categories={categories}
+            onOpenCategories={() => setActiveTab('categorias')}
             onAddProduct={handleOpenAddProduct}
             onEditProduct={handleOpenEditProduct}
             onDeleteProduct={handleDeleteProduct}
@@ -324,9 +344,29 @@ export default function AdminDashboard({
           />
         )}
 
+        {activeTab === 'categorias' && (
+          <AdminCategoriesManager
+            categories={categories}
+            products={products}
+            onSaveCategories={(updated) => {
+              if (onSaveCategories) onSaveCategories(updated);
+              showToast('Categorias salvas com sucesso!');
+            }}
+            onRenameCategory={(oldName, newName) => {
+              if (onRenameCategory) onRenameCategory(oldName, newName);
+              showToast(`Categoria "${oldName}" renomeada para "${newName}"!`);
+            }}
+            onDeleteCategory={(catToDelete, fallbackCat) => {
+              if (onDeleteCategory) onDeleteCategory(catToDelete, fallbackCat);
+              showToast(`Categoria "${catToDelete}" removida com sucesso!`);
+            }}
+          />
+        )}
+
         {activeTab === 'banners' && (
           <AdminBannerManager
             banners={banners}
+            categories={categories}
             onSaveBanners={(updated) => {
               onSaveBanners(updated);
               showToast('Banners do carrossel atualizados com sucesso!');
@@ -380,6 +420,7 @@ export default function AdminDashboard({
         onClose={() => setIsProductModalOpen(false)}
         productToEdit={productToEdit}
         onSave={handleSaveProduct}
+        categories={categories}
       />
     </div>
   );

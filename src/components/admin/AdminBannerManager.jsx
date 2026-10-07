@@ -5,6 +5,7 @@ import { CATEGORIES } from '../../data/products';
 
 export default function AdminBannerManager({
   banners,
+  categories = CATEGORIES,
   onSaveBanners,
   onResetBanners
 }) {
@@ -304,7 +305,7 @@ export default function AdminBannerManager({
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full bg-brand-card text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none cursor-pointer"
                   >
-                    {CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>

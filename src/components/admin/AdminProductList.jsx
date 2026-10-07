@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit3, Trash2, Copy, Filter, Eye, CheckCircle2, Film } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, Copy, Filter, Eye, CheckCircle2, Film, Layers } from 'lucide-react';
 import { formatBRL } from '../../utils/masks';
 import { isVideoMedia } from '../../utils/media';
 import { CATEGORIES } from '../../data/products';
 
 export default function AdminProductList({
   products,
+  categories = CATEGORIES,
+  onOpenCategories,
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
@@ -60,7 +62,7 @@ export default function AdminProductList({
         </div>
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
           <span className="text-xs text-gray-400 block">Categorias</span>
-          <span className="text-2xl font-serif text-brand-gold font-bold">{CATEGORIES.length - 1}</span>
+          <span className="text-2xl font-serif text-brand-gold font-bold">{categories ? Math.max(0, categories.length - 1) : 0}</span>
         </div>
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
           <span className="text-xs text-gray-400 block">Preço Médio</span>
@@ -83,7 +85,7 @@ export default function AdminProductList({
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
         </div>
 
-        {/* Filters */}
+        {/* Filters & Actions */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           {/* Stock Filter */}
           <select
@@ -102,10 +104,22 @@ export default function AdminProductList({
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="bg-black/60 text-white text-xs px-3 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none cursor-pointer"
           >
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+
+          {/* Manage Categories Quick Action */}
+          {onOpenCategories && (
+            <button
+              onClick={onOpenCategories}
+              className="px-3.5 py-2.5 bg-black/60 hover:bg-white/10 text-brand-gold text-xs font-semibold uppercase tracking-wider rounded-lg transition-all border border-brand-gold/30 hover:border-brand-gold flex items-center gap-1.5 flex-shrink-0"
+              title="Gerenciar Categorias da Loja"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Categorias</span>
+            </button>
+          )}
 
           {/* Add Product Button */}
           <button
