@@ -42,6 +42,7 @@ export default function AdminProductModal({
     category: 'Vestidos',
     price_number: 120.00,
     compare_price: '',
+    stock: 10,
     description: '',
     images: [],
     colors: [],
@@ -64,6 +65,7 @@ export default function AdminProductModal({
         category: productToEdit.category || 'Geral',
         price_number: productToEdit.price_number || 0,
         compare_price: productToEdit.compare_price || '',
+        stock: typeof productToEdit.stock === 'number' ? productToEdit.stock : 10,
         description: productToEdit.description || '',
         images: productToEdit.images ? [...productToEdit.images] : [],
         colors: productToEdit.colors ? [...productToEdit.colors] : [],
@@ -76,6 +78,7 @@ export default function AdminProductModal({
         category: 'Vestidos',
         price_number: 145.00,
         compare_price: '',
+        stock: 10,
         description: '',
         images: ['https://dcdn-us.mitiendanube.com/stores/007/383/278/products/img_9280-b6b9e72ef2fd51ab3617884043933298-1024-1024.webp'],
         colors: [
@@ -257,6 +260,7 @@ export default function AdminProductModal({
       compare_price: formData.compare_price.trim() ? formData.compare_price.trim() : '',
       pix_price: formatBRL(priceNum * 0.99),
       installments: `12x de ${formatBRL((priceNum * 1.235) / 12)}`,
+      stock: Math.max(0, parseInt(formData.stock) || 0),
       description: formData.description.trim(),
       images: formData.images.length > 0
         ? formData.images
@@ -316,7 +320,7 @@ export default function AdminProductModal({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-1">
                   Categoria *
@@ -349,7 +353,7 @@ export default function AdminProductModal({
 
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-1">
-                  Preço Comparado / Riscado (R$)
+                  Preço Riscado (R$)
                 </label>
                 <input
                   type="text"
@@ -359,11 +363,52 @@ export default function AdminProductModal({
                   className="w-full bg-brand-card text-white text-xs px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
                 />
               </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-300 block mb-1 flex items-center justify-between">
+                  <span>Qtd. em Estoque *</span>
+                  {formData.stock <= 0 && (
+                    <span className="text-[10px] text-red-400 font-bold">Sem Estoque</span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: Math.max(0, parseInt(e.target.value) || 0) })}
+                  placeholder="10"
+                  required
+                  className={`w-full bg-brand-card text-white text-xs px-3.5 py-2.5 rounded-lg border focus:outline-none font-mono ${
+                    formData.stock <= 0
+                      ? 'border-red-500/80 focus:border-red-400 text-red-300'
+                      : 'border-brand-border focus:border-brand-rose'
+                  }`}
+                />
+              </div>
             </div>
 
-            <div className="p-3 bg-black/60 rounded-lg border border-brand-border text-xs text-gray-400 flex flex-wrap gap-4">
-              <span>Pix com 1% OFF: <strong className="text-brand-pix">{formatBRL(formData.price_number * 0.99)}</strong></span>
-              <span>Parcelamento: <strong className="text-white">12x de {formatBRL((formData.price_number * 1.235) / 12)}</strong></span>
+            <div className="p-3 bg-black/60 rounded-lg border border-brand-border text-xs text-gray-400 flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex flex-wrap gap-4">
+                <span>Pix com 1% OFF: <strong className="text-brand-pix">{formatBRL(formData.price_number * 0.99)}</strong></span>
+                <span>Parcelamento: <strong className="text-white">12x de {formatBRL((formData.price_number * 1.235) / 12)}</strong></span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold">
+                <span>Status Estoque:</span>
+                {formData.stock <= 0 ? (
+                  <span className="text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-500/40 font-bold">
+                    🔴 Sem Estoque (Aparecerá Cinza)
+                  </span>
+                ) : formData.stock <= 3 ? (
+                  <span className="text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/40">
+                    🟡 Baixo ({formData.stock} un.)
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
+                    🟢 Disponível ({formData.stock} un.)
+                  </span>
+                )}
+              </div>
             </div>
 
             <div>

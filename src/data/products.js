@@ -1,5 +1,5 @@
 // Millany Modas - 39 Official Strictly Verified Products (No cross-product mixing)
-export const PRODUCTS = [
+const RAW_PRODUCTS = [
   {
     "id": "macaquinho-renda-rpe7o",
     "url": "https://millanymodas.com.br/produtos/macaquinho-renda-rpe7o/",
@@ -1344,6 +1344,11 @@ export const PRODUCTS = [
     "description": "Compre online Conjunto tricô modal por R$155,00. Faça seu pedido e pague-o online."
   }
 ];
+
+export const PRODUCTS = RAW_PRODUCTS.map((p, idx) => ({
+  ...p,
+  stock: typeof p.stock === 'number' ? p.stock : (idx === 4 ? 0 : 12)
+}));
 
 
 export const CATEGORIES = [

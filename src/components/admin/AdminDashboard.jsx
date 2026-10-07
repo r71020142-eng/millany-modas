@@ -95,6 +95,14 @@ export default function AdminDashboard({
     showToast('Produto duplicado com sucesso!');
   };
 
+  const handleUpdateProductStock = (productId, newStock) => {
+    const updated = products.map((p) =>
+      p.id === productId ? { ...p, stock: Math.max(0, parseInt(newStock) || 0) } : p
+    );
+    onSaveProducts(updated);
+    showToast('Estoque atualizado!');
+  };
+
   // Export / Import
   const handleExportData = () => {
     const exportObject = {
@@ -312,6 +320,7 @@ export default function AdminDashboard({
             onEditProduct={handleOpenEditProduct}
             onDeleteProduct={handleDeleteProduct}
             onDuplicateProduct={handleDuplicateProduct}
+            onUpdateStock={handleUpdateProductStock}
           />
         )}
 

@@ -531,6 +531,12 @@ export default function AdminCRM({
                           <span>{order.status || 'Novo Pedido'}</span>
                         </span>
 
+                        {order.stockDeducted && (
+                          <span className="flex items-center gap-1 text-[11px] bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md font-semibold" title="Estoque deste pedido já foi debitado automaticamente">
+                            <Package className="w-3 h-3 text-purple-400" /> Estoque Baixado
+                          </span>
+                        )}
+
                         {order.financial?.paymentMethod === 'pix' ? (
                           <span className="flex items-center gap-1 text-[11px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-semibold">
                             <QrCode className="w-3 h-3" /> Pix

@@ -5,7 +5,7 @@ export const DEFAULT_PAYMENT_SETTINGS = {
     enabled: true,
     discountPercent: 1, // e.g. 1%, 5%, 10%
     keyType: 'Telefone', // 'Telefone' | 'CPF' | 'CNPJ' | 'E-mail' | 'Aleatória'
-    key: '31986570126',
+    key: '3180393768',
     recipient: 'Millany Modas / Rayane Pires',
     bank: 'Nubank / Mercado Pago',
     city: 'Ipatinga - MG',

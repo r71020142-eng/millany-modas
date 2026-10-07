@@ -244,7 +244,7 @@ export default function AdminSettings({
               type="text"
               value={formData.orderWhatsApp}
               onChange={(e) => setFormData({ ...formData, orderWhatsApp: e.target.value.replace(/\D/g, '') })}
-              placeholder="5531986570126"
+              placeholder="553180393768"
               required
               className="w-full bg-brand-card text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none font-mono"
             />
@@ -263,7 +263,7 @@ export default function AdminSettings({
               type="text"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="(31) 98810-9869"
+              placeholder="(31) 8039-3768"
               className="w-full bg-brand-card text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
             />
             <p className="text-[11px] text-gray-400">

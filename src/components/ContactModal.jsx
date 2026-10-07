@@ -37,7 +37,7 @@ export default function ContactModal({ isOpen, onClose }) {
             <MessageCircle className="w-5 h-5 text-brand-whatsapp flex-shrink-0 mt-0.5" />
             <div>
               <strong className="text-white block text-sm">WhatsApp de Pedidos</strong>
-              <p className="text-gray-400 mt-0.5">(31) 98657-0126</p>
+              <p className="text-gray-400 mt-0.5">(31) 8039-3768</p>
               <a
                 href={`https://wa.me/${STORE_INFO.orderWhatsApp}`}
                 target="_blank"

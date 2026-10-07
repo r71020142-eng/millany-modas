@@ -88,7 +88,7 @@ Gostaria de confirmar seus dados para envio! ✨`;
     } else if (type === 'pix') {
       msg = `Olá ${customer.name}! Tudo bem? Aqui é da Millany Modas. 🌸
 Para confirmar seu pedido #${order.orderNumber}, segue a chave Pix oficial:
-*Chave Pix:* ${STORE_INFO.orderWhatsApp} (Telefone)
+*Chave Pix:* 3180393768 (Telefone)
 *Valor:* ${formatBRL(financial.total)}
 
 Assim que efetuar o pagamento, nos envie o comprovante por aqui! ✨`;
@@ -123,7 +123,14 @@ Em breve atualizaremos com o código de rastreamento. Muito obrigada pela prefer
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {order.stockDeducted && (
+              <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1" title="Estoque dos produtos deste pedido foi baixado automaticamente">
+                <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Estoque Baixado</span>
+              </span>
+            )}
+
             {/* Status Selector */}
             <select
               value={currentStatus}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Eye, Heart, Check, Star, Play } from 'lucide-react';
+import { ShoppingBag, Eye, Heart, Check, Star, Play, AlertCircle } from 'lucide-react';
 import { formatBRL } from '../utils/masks';
 import { isVideoMedia } from '../utils/media';
 import { getProductRatingStats } from '../data/reviews';
@@ -18,6 +18,7 @@ export default function ProductCard({
     product.colors && product.colors.length > 0 ? product.colors[0].name : ''
   );
 
+  const isOutOfStock = typeof product.stock === 'number' && product.stock <= 0;
   const ratingStats = getProductRatingStats(product.id);
 
   const mainImg = product.images && product.images.length > 0
@@ -34,6 +35,7 @@ export default function ProductCard({
 
   const handleQuickAdd = (e) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
     onAddToCart({
       ...product,
       color: selectedColor || (product.colors?.[0]?.name || 'Padrão'),
@@ -46,7 +48,11 @@ export default function ProductCard({
 
   return (
     <div
-      className="group relative bg-brand-card/80 border border-brand-border/80 hover:border-brand-rose/60 rounded-xl overflow-hidden transition-all duration-300 flex flex-col justify-between hover:shadow-xl hover:shadow-brand-rose/10"
+      className={`group relative rounded-xl overflow-hidden transition-all duration-300 flex flex-col justify-between ${
+        isOutOfStock
+          ? 'bg-zinc-950/90 border border-zinc-800 opacity-75 grayscale hover:grayscale-0 shadow-none'
+          : 'bg-brand-card/80 border border-brand-border/80 hover:border-brand-rose/60 hover:shadow-xl hover:shadow-brand-rose/10'
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -82,6 +88,11 @@ export default function ProductCard({
 
         {/* Badges Overlay */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
+          {isOutOfStock && (
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-red-600 text-white shadow-md flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Esgotado
+            </span>
+          )}
           {product.badges?.map((badge, idx) => (
             <span
               key={idx}
@@ -102,6 +113,15 @@ export default function ProductCard({
             </span>
           )}
         </div>
+
+        {/* Center Out-of-Stock Overlay */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center z-15 pointer-events-none">
+            <span className="px-3 py-1.5 bg-zinc-900/90 text-zinc-200 font-bold text-[11px] uppercase tracking-widest rounded-full border border-red-500/40 shadow-xl">
+              Sem Estoque
+            </span>
+          </div>
+        )}
 
         {/* Quick View Button overlay on hover */}
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
@@ -195,30 +215,50 @@ export default function ProductCard({
                   : product.installments}
               </div>
             )}
+
+            {/* Stock indicator note */}
+            {isOutOfStock ? (
+              <div className="text-[11px] font-bold text-red-400 mt-1 flex items-center gap-1">
+                <span>● Produto Indisponível</span>
+              </div>
+            ) : typeof product.stock === 'number' && product.stock <= 3 ? (
+              <div className="text-[11px] font-bold text-amber-400 mt-1 flex items-center gap-1">
+                <span>⚡ Restam apenas {product.stock} un.!</span>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* 3. Action Button ("Comprar") */}
+        {/* 3. Action Button ("Comprar" or "Sem Estoque") */}
         <div className="mt-4 pt-3 border-t border-white/5">
-          <button
-            onClick={handleQuickAdd}
-            disabled={addedAnim}
-            className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
-              addedAnim
-                ? 'bg-emerald-600 text-white'
-                : 'bg-brand-rose hover:bg-brand-rose-dark text-white hover:shadow-brand-rose/30'
-            }`}
-          >
-            {addedAnim ? (
-              <>
-                <Check className="w-4 h-4" /> Pronto!
-              </>
-            ) : (
-              <>
-                <ShoppingBag className="w-4 h-4" /> Comprar
-              </>
-            )}
-          </button>
+          {isOutOfStock ? (
+            <button
+              disabled
+              className="w-full py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 cursor-not-allowed border border-zinc-700/60 flex items-center justify-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4 text-zinc-500" /> Sem Estoque
+            </button>
+          ) : (
+            <button
+              onClick={handleQuickAdd}
+              disabled={addedAnim}
+              className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+                addedAnim
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-brand-rose hover:bg-brand-rose-dark text-white hover:shadow-brand-rose/30'
+              }`}
+            >
+              {addedAnim ? (
+                <>
+                  <Check className="w-4 h-4" /> Pronto!
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-4 h-4" /> Comprar
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

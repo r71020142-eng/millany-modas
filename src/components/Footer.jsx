@@ -146,10 +146,10 @@ export default function Footer({
                 <Phone className="w-4 h-4 text-brand-rose flex-shrink-0 mt-0.5" />
                 <div>
                   <a href={`https://wa.me/${STORE_INFO.supportWhatsApp}`} target="_blank" rel="noopener noreferrer" className="hover:text-white block">
-                    (31) 98810-9869 (WhatsApp)
+                    (31) 8039-3768 (WhatsApp)
                   </a>
-                  <a href="tel:31988109869" className="text-[11px] text-gray-500 hover:text-gray-300">
-                    Telefone: 31 98810-9869
+                  <a href="tel:3180393768" className="text-[11px] text-gray-500 hover:text-gray-300">
+                    Telefone: (31) 8039-3768
                   </a>
                 </div>
               </li>

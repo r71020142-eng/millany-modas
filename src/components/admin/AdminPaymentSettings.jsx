@@ -272,7 +272,7 @@ export default function AdminPaymentSettings({
                   pix: { ...prev.pix, key: e.target.value }
                 }))
               }
-              placeholder="31986570126"
+              placeholder="3180393768"
               className="w-full bg-brand-card text-white font-mono px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
             />
             <p className="text-[10px] text-gray-400">

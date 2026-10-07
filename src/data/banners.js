@@ -2,9 +2,9 @@ export const STORE_INFO = {
   name: 'Millany Modas',
   tagline: 'Moda e Vestuário Feminino com Elegância e Qualidade',
   logoUrl: 'https://dcdn-us.mitiendanube.com/stores/007/383/278/themes/common/logo-5750615331560322054-1772765030-b58e30fa0945ba0392e06afb0e2901951772765030-480-0.webp',
-  orderWhatsApp: '5531986570126', // Requested target WhatsApp for orders
-  supportWhatsApp: '5531988109869', // Store official support number
-  phone: '(31) 98810-9869',
+  orderWhatsApp: '553180393768', // Requested target WhatsApp for orders (55 31 8039-3768)
+  supportWhatsApp: '553180393768', // Store official support number (55 31 8039-3768)
+  phone: '(31) 8039-3768',
   address: 'Av. Selim José de Sales, 1557 - Canaã, Ipatinga - MG',
   instagram: 'millanymodas',
   pixDiscountPercent: 1, // 1% off on Pix

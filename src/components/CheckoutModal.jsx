@@ -207,7 +207,7 @@ export default function CheckoutModal({
 
     // Format WhatsApp message URL
     const encodedMsg = formatWhatsAppOrderMessage(orderData);
-    const targetWhatsApp = STORE_INFO.orderWhatsApp || '5531986570126';
+    const targetWhatsApp = STORE_INFO.orderWhatsApp || '553180393768';
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${targetWhatsApp}&text=${encodedMsg}`;
 
     // Open WhatsApp in new tab / app
@@ -303,7 +303,7 @@ export default function CheckoutModal({
                 className="w-full py-4 px-6 bg-brand-whatsapp hover:bg-emerald-600 text-white font-bold uppercase tracking-wider rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 text-sm"
               >
                 <MessageCircle className="w-5 h-5" />
-                <span>Confirmar Pedido no WhatsApp (55 31 98657-0126)</span>
+                <span>Confirmar Pedido no WhatsApp (55 31 8039-3768)</span>
               </a>
             </div>
 
@@ -622,12 +622,12 @@ export default function CheckoutModal({
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-white/5">
                           <span className="text-white font-bold text-xs break-all">
-                            {paymentSettings?.pix?.key || '31986570126'}
+                            {paymentSettings?.pix?.key || '3180393768'}
                           </span>
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard?.writeText(paymentSettings?.pix?.key || '31986570126');
+                              navigator.clipboard?.writeText(paymentSettings?.pix?.key || '3180393768');
                               setCopiedPixKey(true);
                               setTimeout(() => setCopiedPixKey(false), 2000);
                             }}

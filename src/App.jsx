@@ -68,7 +68,11 @@ export default function App() {
       localStorage.removeItem('millany_admin_products');
       localStorage.removeItem('millany_admin_products_v2');
       const saved = localStorage.getItem('millany_admin_products_v3');
-      return saved ? JSON.parse(saved) : PRODUCTS;
+      const loaded = saved ? JSON.parse(saved) : PRODUCTS;
+      return loaded.map((p, idx) => ({
+        ...p,
+        stock: typeof p.stock === 'number' ? p.stock : (idx === 4 ? 0 : 12)
+      }));
     } catch {
       return PRODUCTS;
     }
@@ -88,7 +92,14 @@ export default function App() {
   const [storeInfo, setStoreInfo] = useState(() => {
     try {
       const saved = localStorage.getItem('millany_admin_store_info_v2');
-      return saved ? JSON.parse(saved) : STORE_INFO;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.orderWhatsApp === '5531986570126') parsed.orderWhatsApp = '553180393768';
+        if (parsed.supportWhatsApp === '5531988109869') parsed.supportWhatsApp = '553180393768';
+        if (parsed.phone === '(31) 98810-9869' || parsed.phone === '(31) 98657-0126') parsed.phone = '(31) 8039-3768';
+        return parsed;
+      }
+      return STORE_INFO;
     } catch {
       return STORE_INFO;
     }
@@ -98,7 +109,14 @@ export default function App() {
   const [paymentSettings, setPaymentSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('millany_admin_payment_settings_v1');
-      return saved ? JSON.parse(saved) : DEFAULT_PAYMENT_SETTINGS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.pix?.key === '31986570126') {
+          parsed.pix.key = '3180393768';
+        }
+        return parsed;
+      }
+      return DEFAULT_PAYMENT_SETTINGS;
     } catch {
       return DEFAULT_PAYMENT_SETTINGS;
     }
@@ -252,9 +270,75 @@ export default function App() {
   };
 
   const handleUpdateOrderStatus = (orderId, newStatus) => {
-    setCrmOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
+    setCrmOrders((prevOrders) => {
+      const targetOrder = prevOrders.find((o) => o.id === orderId);
+      if (!targetOrder) return prevOrders;
+
+      const isBecomingPaid = newStatus === 'Confirmado / Pago' || newStatus.toLowerCase().includes('pago');
+      const wasDeducted = !!targetOrder.stockDeducted;
+
+      // Deduct stock automatically when order is updated to paid (if not already deducted)
+      if (isBecomingPaid && !wasDeducted && Array.isArray(targetOrder.items)) {
+        setProducts((prevProducts) => {
+          const updatedProducts = prevProducts.map((prod) => {
+            const matchingItem = targetOrder.items.find(
+              (item) => item.id === prod.id || item.slug === prod.slug || item.title === prod.title
+            );
+            if (matchingItem) {
+              const currentStock = typeof prod.stock === 'number' ? prod.stock : 10;
+              const deductQty = matchingItem.quantity || 1;
+              const newStock = Math.max(0, currentStock - deductQty);
+              return { ...prod, stock: newStock };
+            }
+            return prod;
+          });
+
+          try {
+            localStorage.setItem('millany_admin_products_v3', JSON.stringify(updatedProducts));
+          } catch (e) {
+            console.error('Erro ao atualizar estoque no localStorage:', e);
+          }
+
+          return updatedProducts;
+        });
+      }
+
+      // Restore stock if order is cancelled after being paid
+      if (newStatus === 'Cancelado' && wasDeducted && Array.isArray(targetOrder.items)) {
+        setProducts((prevProducts) => {
+          const updatedProducts = prevProducts.map((prod) => {
+            const matchingItem = targetOrder.items.find(
+              (item) => item.id === prod.id || item.slug === prod.slug || item.title === prod.title
+            );
+            if (matchingItem) {
+              const currentStock = typeof prod.stock === 'number' ? prod.stock : 0;
+              const restoreQty = matchingItem.quantity || 1;
+              return { ...prod, stock: currentStock + restoreQty };
+            }
+            return prod;
+          });
+
+          try {
+            localStorage.setItem('millany_admin_products_v3', JSON.stringify(updatedProducts));
+          } catch (e) {
+            console.error('Erro ao restaurar estoque no localStorage:', e);
+          }
+
+          return updatedProducts;
+        });
+      }
+
+      return prevOrders.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            status: newStatus,
+            stockDeducted: isBecomingPaid ? true : newStatus === 'Cancelado' ? false : o.stockDeducted
+          };
+        }
+        return o;
+      });
+    });
   };
 
   const handleUpdateOrderNotes = (orderId, notes) => {
@@ -292,6 +376,11 @@ export default function App() {
 
   // Cart operations
   const handleAddToCart = (productToAdd) => {
+    if (typeof productToAdd.stock === 'number' && productToAdd.stock <= 0) {
+      alert('Este produto está sem estoque no momento.');
+      return;
+    }
+
     setCartItems((prevItems) => {
       const existingIdx = prevItems.findIndex(
         (item) =>
@@ -302,7 +391,9 @@ export default function App() {
 
       if (existingIdx > -1) {
         const next = [...prevItems];
-        next[existingIdx].quantity += productToAdd.quantity || 1;
+        const maxStock = typeof productToAdd.stock === 'number' ? productToAdd.stock : 99;
+        const newQty = (next[existingIdx].quantity || 1) + (productToAdd.quantity || 1);
+        next[existingIdx].quantity = Math.min(maxStock, newQty);
         return next;
       } else {
         return [...prevItems, { ...productToAdd, quantity: productToAdd.quantity || 1 }];

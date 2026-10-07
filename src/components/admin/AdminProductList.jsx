@@ -9,10 +9,12 @@ export default function AdminProductList({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
-  onDuplicateProduct
+  onDuplicateProduct,
+  onUpdateStock
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
+  const [stockFilter, setStockFilter] = useState('all'); // 'all' | 'in_stock' | 'out_of_stock'
 
   const filtered = products.filter((p) => {
     const matchesSearch =
@@ -21,18 +23,23 @@ export default function AdminProductList({
     const matchesCategory =
       categoryFilter === 'Todos' ||
       p.category.toLowerCase() === categoryFilter.toLowerCase();
-    return matchesSearch && matchesCategory;
+    const stockNum = typeof p.stock === 'number' ? p.stock : 10;
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'out_of_stock' ? stockNum <= 0 : stockNum > 0);
+    return matchesSearch && matchesCategory && matchesStock;
   });
 
   const totalValue = products.reduce((acc, p) => acc + (p.price_number || 0), 0);
   const avgPrice = products.length > 0 ? totalValue / products.length : 0;
   const promoCount = products.filter((p) => p.compare_price && p.compare_price !== 'R$0,00').length;
+  const outOfStockCount = products.filter((p) => (p.stock || 0) <= 0).length;
 
   return (
     <div className="space-y-6 text-left">
       
       {/* 1. Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
           <span className="text-xs text-gray-400 block">Total de Produtos</span>
           <span className="text-2xl font-serif text-white font-bold">{products.length}</span>
@@ -40,6 +47,16 @@ export default function AdminProductList({
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
           <span className="text-xs text-gray-400 block">Em Promoção</span>
           <span className="text-2xl font-serif text-brand-rose-light font-bold">{promoCount}</span>
+        </div>
+        <div className={`p-4 rounded-xl border transition-colors ${
+          outOfStockCount > 0 ? 'bg-red-950/30 border-red-500/40' : 'bg-brand-card border-brand-border'
+        }`}>
+          <span className="text-xs text-gray-400 block">Sem Estoque</span>
+          <span className={`text-2xl font-serif font-bold ${
+            outOfStockCount > 0 ? 'text-red-400' : 'text-emerald-400'
+          }`}>
+            {outOfStockCount}
+          </span>
         </div>
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
           <span className="text-xs text-gray-400 block">Categorias</span>
@@ -52,10 +69,10 @@ export default function AdminProductList({
       </div>
 
       {/* 2. Top Controls & Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl bg-brand-card border border-brand-border">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl bg-brand-card border border-brand-border">
         
         {/* Search */}
-        <div className="relative w-full sm:w-80">
+        <div className="relative w-full sm:w-72">
           <input
             type="text"
             value={searchTerm}
@@ -66,8 +83,20 @@ export default function AdminProductList({
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
         </div>
 
-        {/* Category Filter */}
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        {/* Filters */}
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+          {/* Stock Filter */}
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value)}
+            className="bg-black/60 text-white text-xs px-3 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none cursor-pointer"
+          >
+            <option value="all">Todos Estoques</option>
+            <option value="in_stock">Em Estoque (&gt; 0)</option>
+            <option value="out_of_stock">Sem Estoque (0)</option>
+          </select>
+
+          {/* Category Filter */}
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -98,6 +127,7 @@ export default function AdminProductList({
                 <th className="py-3.5 px-4">Produto</th>
                 <th className="py-3.5 px-4">Categoria</th>
                 <th className="py-3.5 px-4">Preço</th>
+                <th className="py-3.5 px-4">Estoque</th>
                 <th className="py-3.5 px-4">Variações</th>
                 <th className="py-3.5 px-4">Selos</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
@@ -106,7 +136,7 @@ export default function AdminProductList({
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <td colSpan={7} className="text-center py-12 text-gray-400">
                     Nenhum produto encontrado com os filtros atuais.
                   </td>
                 </tr>
@@ -166,6 +196,53 @@ export default function AdminProductList({
                       )}
                       <div className="text-[10px] text-brand-pix">
                         Pix: {product.pix_price}
+                      </div>
+                    </td>
+
+                    {/* Stock Column */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border border-brand-border rounded-lg bg-black/60 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateStock && onUpdateStock(product.id, Math.max(0, (product.stock || 0) - 1))}
+                            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
+                            title="Diminuir estoque (-1)"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            value={typeof product.stock === 'number' ? product.stock : 10}
+                            onChange={(e) => onUpdateStock && onUpdateStock(product.id, Math.max(0, parseInt(e.target.value) || 0))}
+                            className={`w-12 bg-transparent text-center text-xs font-mono font-bold py-1 focus:outline-none focus:bg-white/5 ${
+                              (product.stock || 0) <= 0 ? 'text-red-400' : 'text-white'
+                            }`}
+                            title="Editar quantidade"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => onUpdateStock && onUpdateStock(product.id, (product.stock || 0) + 1)}
+                            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
+                            title="Aumentar estoque (+1)"
+                          >
+                            +
+                          </button>
+                        </div>
+                        {(product.stock || 0) <= 0 ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40 whitespace-nowrap">
+                            Sem Estoque
+                          </span>
+                        ) : (product.stock || 0) <= 3 ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 whitespace-nowrap">
+                            Baixo
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 whitespace-nowrap">
+                            OK
+                          </span>
+                        )}
                       </div>
                     </td>
 

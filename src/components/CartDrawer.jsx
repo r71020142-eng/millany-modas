@@ -164,8 +164,15 @@ export default function CartDrawer({
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => onUpdateQuantity(idx, item.quantity + 1)}
-                          className="px-2 py-0.5 text-gray-400 hover:text-white text-xs"
+                          onClick={() => {
+                            const maxStock = typeof item.stock === 'number' ? item.stock : 99;
+                            if (item.quantity < maxStock) {
+                              onUpdateQuantity(idx, item.quantity + 1);
+                            }
+                          }}
+                          disabled={typeof item.stock === 'number' && item.quantity >= item.stock}
+                          className="px-2 py-0.5 text-gray-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={typeof item.stock === 'number' && item.quantity >= item.stock ? `Limite de estoque (${item.stock}) atingido` : 'Aumentar'}
                         >
                           +
                         </button>

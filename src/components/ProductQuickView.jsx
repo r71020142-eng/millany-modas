@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingBag, Truck, ShieldCheck, CreditCard, ChevronRight, Check, Sparkles, Star, MessageSquare, Play, Film } from 'lucide-react';
+import { X, ShoppingBag, Truck, ShieldCheck, CreditCard, ChevronRight, Check, Sparkles, Star, MessageSquare, Play, Film, AlertCircle, AlertTriangle } from 'lucide-react';
 import { formatBRL, maskCEP, fetchAddressByCEP } from '../utils/masks';
 import { isVideoMedia } from '../utils/media';
 import ShopeeReviews from './reviews/ShopeeReviews';
@@ -14,6 +14,9 @@ export default function ProductQuickView({
   paymentSettings
 }) {
   if (!product) return null;
+
+  const isOutOfStock = typeof product.stock === 'number' && product.stock <= 0;
+  const maxStock = typeof product.stock === 'number' ? product.stock : 99;
 
   const [selectedImg, setSelectedImg] = useState(
     product.images?.[0] || 'https://dcdn-us.mitiendanube.com/stores/007/383/278/themes/common/logo-5750615331560322054-1772765030-b58e30fa0945ba0392e06afb0e2901951772765030-480-0.webp'
@@ -97,19 +100,32 @@ export default function ProductQuickView({
                 <img
                   src={selectedImg}
                   alt={product.title}
-                  className="w-full h-full object-cover object-top"
+                  className={`w-full h-full object-cover object-top ${isOutOfStock ? 'grayscale contrast-90' : ''}`}
                 />
               )}
 
-              {product.badges?.length > 0 && (
-                <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
-                  {product.badges.map((b, i) => (
-                    <span key={i} className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-brand-rose text-white shadow">
-                      {b}
-                    </span>
-                  ))}
+              {/* Out-of-stock overlay on main preview */}
+              {isOutOfStock && (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center z-20 pointer-events-none">
+                  <span className="px-4 py-2 bg-zinc-900/95 text-white font-bold text-xs uppercase tracking-widest rounded-full border border-red-500/50 shadow-2xl flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    Sem Estoque
+                  </span>
                 </div>
               )}
+
+              <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 pointer-events-none">
+                {isOutOfStock && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-red-600 text-white shadow">
+                    Esgotado
+                  </span>
+                )}
+                {product.badges?.map((b, i) => (
+                  <span key={i} className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-sm bg-brand-rose text-white shadow">
+                    {b}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Thumbnails */}
@@ -284,24 +300,43 @@ export default function ProductQuickView({
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">
                   Quantidade:
                 </span>
-                <div className="flex items-center border border-brand-border rounded-lg bg-black/40">
-                  <button
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="px-3 py-1.5 text-gray-400 hover:text-white transition-colors"
-                  >
-                    -
-                  </button>
-                  <span className="px-3 py-1.5 text-sm font-bold text-white min-w-[32px] text-center">
-                    {quantity}
+                {isOutOfStock ? (
+                  <span className="text-xs font-bold text-red-400 bg-red-950/40 px-3 py-1.5 rounded-lg border border-red-500/30">
+                    Esgotado (0 disponível)
                   </span>
-                  <button
-                    onClick={() => setQuantity((q) => q + 1)}
-                    className="px-3 py-1.5 text-gray-400 hover:text-white transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center border border-brand-border rounded-lg bg-black/40">
+                    <button
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="px-3 py-1.5 text-gray-400 hover:text-white transition-colors"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1.5 text-sm font-bold text-white min-w-[32px] text-center">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity((q) => Math.min(maxStock, q + 1))}
+                      disabled={quantity >= maxStock}
+                      className="px-3 py-1.5 text-gray-400 hover:text-white transition-colors disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Stock Alerts */}
+              {isOutOfStock ? (
+                <div className="mt-4 p-3.5 bg-red-950/30 border border-red-500/30 rounded-xl text-xs text-red-200 flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span>Este produto está temporariamente <strong>sem estoque</strong>. Aguarde reposição ou tire dúvidas no WhatsApp!</span>
+                </div>
+              ) : typeof product.stock === 'number' && product.stock <= 3 ? (
+                <div className="mt-3 text-xs text-amber-400 font-bold flex items-center gap-1.5">
+                  <span>⚡ Restam apenas {product.stock} unidades disponíveis em nosso estoque!</span>
+                </div>
+              ) : null}
 
               {/* Description */}
               {product.description && (
@@ -313,32 +348,43 @@ export default function ProductQuickView({
 
             {/* CTAs */}
             <div className="pt-4 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleAdd}
-                disabled={added}
-                className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${
-                  added
-                    ? 'bg-emerald-600 border-emerald-500 text-white'
-                    : 'bg-brand-card hover:bg-brand-rose/20 text-white border-brand-rose/60 hover:border-brand-rose'
-                }`}
-              >
-                {added ? (
-                  <>
-                    <Check className="w-4 h-4" /> Adicionado à Sacola!
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4 text-brand-rose-light" /> Adicionar à Sacola
-                  </>
-                )}
-              </button>
+              {isOutOfStock ? (
+                <button
+                  disabled
+                  className="w-full py-3.5 px-4 rounded-xl bg-zinc-800 text-zinc-400 text-xs font-bold uppercase tracking-wider border border-zinc-700 cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-zinc-500" /> Produto Indisponível / Sem Estoque
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleAdd}
+                    disabled={added}
+                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 border ${
+                      added
+                        ? 'bg-emerald-600 border-emerald-500 text-white'
+                        : 'bg-brand-card hover:bg-brand-rose/20 text-white border-brand-rose/60 hover:border-brand-rose'
+                    }`}
+                  >
+                    {added ? (
+                      <>
+                        <Check className="w-4 h-4" /> Adicionado à Sacola!
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4 text-brand-rose-light" /> Adicionar à Sacola
+                      </>
+                    )}
+                  </button>
 
-              <button
-                onClick={handleCheckoutDirect}
-                className="flex-1 py-3 px-4 rounded-xl bg-brand-rose hover:bg-brand-rose-dark text-white text-xs font-bold uppercase tracking-widest transition-all shadow-lg hover:shadow-brand-rose/40 flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" /> Comprar Agora
-              </button>
+                  <button
+                    onClick={handleCheckoutDirect}
+                    className="flex-1 py-3 px-4 rounded-xl bg-brand-rose hover:bg-brand-rose-dark text-white text-xs font-bold uppercase tracking-widest transition-all shadow-lg hover:shadow-brand-rose/40 flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" /> Comprar Agora
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
