@@ -16,8 +16,23 @@ import { PRODUCTS, CATEGORIES } from './data/products';
 import { BANNER_SLIDES, STORE_INFO } from './data/banners';
 import { INITIAL_DEMO_ORDERS } from './data/demoOrders';
 import { DEFAULT_PAYMENT_SETTINGS } from './data/paymentSettings';
-import { DEFAULT_STORE_STATUS, getStoredStoreStatus } from './data/storeStatus';
-import { Sparkles, Filter, ChevronDown, Shield, Settings, PauseCircle, PlayCircle, LogOut } from 'lucide-react';
+import {
+  fetchRemoteStoreStatus,
+  saveRemoteStoreStatus,
+  getLocalStoreStatus
+} from './services/storeStatusSync';
+import {
+  Sparkles,
+  Filter,
+  ChevronDown,
+  Shield,
+  Settings,
+  PauseCircle,
+  PlayCircle,
+  LogOut,
+  Eye,
+  AlertTriangle
+} from 'lucide-react';
 
 export default function App() {
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -116,16 +131,45 @@ export default function App() {
     }
   }, [crmOrders]);
 
-  // Dynamic Store Status State (Pause / Maintenance mode)
-  const [storeStatus, setStoreStatus] = useState(() => getStoredStoreStatus());
+  // Dynamic Store Status State (Pause / Maintenance mode synced globally)
+  const [storeStatus, setStoreStatus] = useState(() => getLocalStoreStatus());
+  const [isAdminPreviewingStore, setIsAdminPreviewingStore] = useState(false);
+
+  // Synchronize store status across all devices and visitors
+  useEffect(() => {
+    let isMounted = true;
+    const syncStatus = async () => {
+      const remote = await fetchRemoteStoreStatus();
+      if (isMounted && remote && typeof remote.isPaused === 'boolean') {
+        setStoreStatus((prev) => {
+          if (
+            prev.isPaused !== remote.isPaused ||
+            prev.pausedTitle !== remote.pausedTitle ||
+            prev.pausedMessage !== remote.pausedMessage ||
+            prev.estimatedReturn !== remote.estimatedReturn
+          ) {
+            return remote;
+          }
+          return prev;
+        });
+      }
+    };
+
+    syncStatus();
+    const interval = setInterval(syncStatus, 4000);
+    const onFocus = () => syncStatus();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
 
   const handleSaveStoreStatus = (updated) => {
     setStoreStatus(updated);
-    try {
-      localStorage.setItem('millany_store_status_v1', JSON.stringify(updated));
-    } catch (e) {
-      console.error('Erro ao salvar storeStatus:', e);
-    }
+    saveRemoteStoreStatus(updated);
   };
 
   // Admin Authentication State
@@ -241,6 +285,7 @@ export default function App() {
 
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
+    setIsAdminPreviewingStore(false);
     localStorage.removeItem('millany_admin_authenticated');
     navigateTo('/');
   };
@@ -367,7 +412,10 @@ export default function App() {
         storeInfo={storeInfo}
         onSaveStoreInfo={handleSaveStoreInfo}
         onResetAllData={handleResetAllData}
-        onCloseAdmin={() => navigateTo('/')}
+        onCloseAdmin={() => {
+          setIsAdminPreviewingStore(false);
+          navigateTo('/');
+        }}
         orders={crmOrders}
         onUpdateOrderStatus={handleUpdateOrderStatus}
         onUpdateOrderNotes={handleUpdateOrderNotes}
@@ -383,18 +431,31 @@ export default function App() {
     );
   }
 
-  // ROUTE 3: If Store is PAUSED and visitor is NOT logged in as Admin, show Maintenance Screen
-  if (storeStatus.isPaused && !isAdminLoggedIn) {
-    return (
-      <StoreMaintenanceScreen
-        storeStatus={storeStatus}
-        storeInfo={storeInfo}
-        onOpenAdminLogin={() => navigateTo('/admin')}
-      />
-    );
+  // ROUTE 3: If Store is PAUSED:
+  if (storeStatus.isPaused) {
+    // If the admin explicitly chose to preview the catalog:
+    if (isAdminLoggedIn && isAdminPreviewingStore) {
+      // Admin continues down to render the storefront preview with top banner below
+    } else {
+      // Everyone (visitors AND admin by default) sees the maintenance screen!
+      return (
+        <StoreMaintenanceScreen
+          storeStatus={storeStatus}
+          storeInfo={storeInfo}
+          isAdmin={isAdminLoggedIn}
+          onOpenAdminLogin={() => navigateTo('/admin')}
+          onUnpause={() =>
+            handleSaveStoreStatus({ ...storeStatus, isPaused: false, pausedAt: null })
+          }
+          onToggleAdminPreview={() => setIsAdminPreviewingStore(true)}
+          onOpenAdmin={() => navigateTo('/admin')}
+          onLogout={handleAdminLogout}
+        />
+      );
+    }
   }
 
-  // ROUTE 4: Render Customer Storefront (or Admin Preview if logged in)
+  // ROUTE 4: Render Customer Storefront (or Admin Catalog Preview)
   return (
     <div className="min-h-screen bg-black text-white flex flex-col selection:bg-brand-rose selection:text-white">
       
@@ -403,24 +464,34 @@ export default function App() {
         <div
           className={`px-4 py-2 text-xs flex flex-col sm:flex-row items-center justify-between gap-2 z-50 transition-colors ${
             storeStatus.isPaused
-              ? 'bg-amber-950/80 border-b border-amber-500/50 text-amber-200'
+              ? 'bg-amber-950/95 border-b border-amber-500/60 text-amber-200'
               : 'bg-brand-card/90 border-b border-brand-border text-gray-300'
           }`}
         >
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2.5 h-2.5 rounded-full ${
                 storeStatus.isPaused ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
               }`}
             />
             <span className="font-semibold">
               {storeStatus.isPaused
-                ? '⚠️ MODO PAUSA ATIVO: Visitantes externos veem a tela de manutenção. Você tem acesso exclusivo de administrador.'
-                : 'Modo Administrador Ativo (Loja 100% Online ao Público)'}
+                ? '👁️ MODO PRÉ-VISUALIZAÇÃO DE ADMINISTRADOR: A loja está PAUSADA para todos os visitantes externos.'
+                : 'Modo Administrador Ativo (Loja 100% Aberta ao Público)'}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {storeStatus.isPaused && (
+              <button
+                onClick={() => setIsAdminPreviewingStore(false)}
+                className="px-3 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded font-bold uppercase text-[10px] transition-colors"
+                title="Voltar para a tela de manutenção vista pelos clientes"
+              >
+                Voltar à Tela de Pausa
+              </button>
+            )}
+
             {storeStatus.isPaused ? (
               <button
                 onClick={() =>

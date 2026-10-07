@@ -1,11 +1,16 @@
 import React from 'react';
 import { STORE_INFO } from '../data/banners';
-import { Clock, MessageCircle, Shield, Sparkles, Heart } from 'lucide-react';
+import { Clock, MessageCircle, Shield, PlayCircle, Eye, Settings, LogOut } from 'lucide-react';
 
 export default function StoreMaintenanceScreen({
   storeStatus,
   storeInfo = STORE_INFO,
-  onOpenAdminLogin
+  onOpenAdminLogin,
+  isAdmin = false,
+  onUnpause,
+  onToggleAdminPreview,
+  onOpenAdmin,
+  onLogout
 }) {
   const whatsappUrl = `https://wa.me/${storeInfo?.orderWhatsApp || STORE_INFO.orderWhatsApp}?text=${encodeURIComponent(
     'Olá Millany Modas! Vi que o site está em atualização e gostaria de saber sobre as novidades e atendimento.'
@@ -17,7 +22,66 @@ export default function StoreMaintenanceScreen({
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-rose/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-brand-gold/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Top Bar with Minimal Info */}
+      {/* Top Admin Control Bar (Visible ONLY if user is logged in as Admin) */}
+      {isAdmin && (
+        <div className="bg-amber-950/90 border-b border-amber-500/50 px-4 py-3 text-xs text-amber-200 relative z-50">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-center md:text-left">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+              <span className="font-bold text-xs sm:text-sm">
+                🔒 LOJA PAUSADA AO PÚBLICO: Visitantes externos veem exatamente esta tela. Você está autenticado como administrador.
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {onUnpause && (
+                <button
+                  onClick={onUnpause}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold uppercase text-[10px] tracking-wider transition-all flex items-center gap-1 shadow"
+                  title="Reativar e abrir a loja para todos os clientes"
+                >
+                  <PlayCircle className="w-3.5 h-3.5" />
+                  <span>Reativar Loja</span>
+                </button>
+              )}
+
+              {onToggleAdminPreview && (
+                <button
+                  onClick={onToggleAdminPreview}
+                  className="px-3.5 py-1.5 bg-brand-card hover:bg-white/10 text-white border border-brand-border rounded-lg font-bold uppercase text-[10px] tracking-wider transition-all flex items-center gap-1"
+                  title="Ver os produtos e catálogo sem despausar para os clientes"
+                >
+                  <Eye className="w-3.5 h-3.5 text-brand-gold" />
+                  <span>Pré-visualizar Catálogo</span>
+                </button>
+              )}
+
+              {onOpenAdmin && (
+                <button
+                  onClick={onOpenAdmin}
+                  className="px-3.5 py-1.5 bg-brand-rose hover:bg-brand-rose-dark text-white rounded-lg font-bold uppercase text-[10px] tracking-wider transition-all flex items-center gap-1 shadow"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Painel Admin</span>
+                </button>
+              )}
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="px-2.5 py-1.5 text-gray-400 hover:text-red-400 text-[10px] uppercase font-semibold transition-colors flex items-center gap-1"
+                  title="Sair do modo administrador"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sair</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <header className="py-6 px-4 border-b border-brand-border/40 backdrop-blur-sm relative z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <img
@@ -109,15 +173,16 @@ export default function StoreMaintenanceScreen({
             <strong className="text-brand-rose-light font-serif">@ray.pires_</strong>
           </a>
 
-          {/* Admin link discreetly at bottom */}
-          <button
-            onClick={onOpenAdminLogin}
-            className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors flex items-center gap-1"
-            title="Acesso Administrativo"
-          >
-            <Shield className="w-3 h-3 text-gray-500" />
-            <span>Acesso Restrito</span>
-          </button>
+          {!isAdmin && onOpenAdminLogin && (
+            <button
+              onClick={onOpenAdminLogin}
+              className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors flex items-center gap-1"
+              title="Acesso Administrativo"
+            >
+              <Shield className="w-3 h-3 text-gray-500" />
+              <span>Acesso Restrito</span>
+            </button>
+          )}
         </div>
       </footer>
     </div>
