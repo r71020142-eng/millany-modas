@@ -20,7 +20,10 @@ import {
   Users,
   Star,
   CreditCard,
-  Layers
+  Layers,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
 
 export default function AdminDashboard({
@@ -48,6 +51,7 @@ export default function AdminDashboard({
   onSavePaymentSettings,
   storeStatus,
   onSaveStoreStatus,
+  cloudSyncState,
   onLogout
 }) {
   const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'categorias' | 'banners' | 'reviews' | 'pagamentos' | 'config'
@@ -257,6 +261,46 @@ export default function AdminDashboard({
 
           {/* Actions: Status da Loja, Ver Loja, Logout */}
           <div className="flex items-center gap-2">
+            {/* Cloud Sync Status Indicator */}
+            {cloudSyncState && (() => {
+              const status = typeof cloudSyncState === 'string' ? cloudSyncState : (cloudSyncState.status || 'synced');
+              return (
+                <div
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                    status === 'saving'
+                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                      : status === 'error'
+                      ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                  }`}
+                  title={
+                    status === 'saving'
+                      ? 'Salvando alterações na nuvem...'
+                      : status === 'error'
+                      ? 'Erro ao conectar à nuvem. Os dados estão salvos localmente.'
+                      : 'Sincronizado na Nuvem: Suas alterações estão ativas para todos os aparelhos e visitantes em tempo real!'
+                  }
+                >
+                  {status === 'saving' ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+                      <span className="hidden xl:inline text-[11px]">Sincronizando...</span>
+                    </>
+                  ) : status === 'error' ? (
+                    <>
+                      <CloudOff className="w-3 h-3 text-rose-400" />
+                      <span className="hidden xl:inline text-[11px]">Nuvem Offline</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="w-3 h-3 text-emerald-400" />
+                      <span className="hidden xl:inline text-[11px]">Nuvem Ativa</span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Quick Pause / Active Toggle */}
             <button
               type="button"

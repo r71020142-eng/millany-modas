@@ -22,6 +22,11 @@ import {
   getLocalStoreStatus
 } from './services/storeStatusSync';
 import {
+  fetchRemoteStoreData,
+  saveRemoteStoreData,
+  subscribeToStoreSync
+} from './services/cloudSync';
+import {
   Sparkles,
   Filter,
   ChevronDown,
@@ -122,6 +127,20 @@ export default function App() {
     }
   });
 
+  // Cloud Sync Status ('synced' | 'saving' | 'error')
+  const [cloudSyncState, setCloudSyncState] = useState('synced');
+
+  const pushToCloud = async (partialData) => {
+    setCloudSyncState('saving');
+    try {
+      const res = await saveRemoteStoreData(partialData);
+      setCloudSyncState(res && res.success !== false ? 'synced' : 'error');
+    } catch (e) {
+      console.error('Erro ao sincronizar na nuvem:', e);
+      setCloudSyncState('error');
+    }
+  };
+
   const handleSaveCategories = (updatedCategories) => {
     const sanitized = updatedCategories.includes('Todos')
       ? ['Todos', ...updatedCategories.filter((c) => c !== 'Todos')]
@@ -132,6 +151,7 @@ export default function App() {
     } catch (e) {
       console.error('Erro ao salvar categorias:', e);
     }
+    pushToCloud({ categories: sanitized });
   };
 
   const handleRenameCategory = (oldName, newName) => {
@@ -156,6 +176,7 @@ export default function App() {
       } catch (e) {
         console.error('Erro ao atualizar produtos com nova categoria:', e);
       }
+      pushToCloud({ categories: updatedCategories, products: updatedProducts });
       return updatedProducts;
     });
 
@@ -189,6 +210,7 @@ export default function App() {
       } catch (e) {
         console.error('Erro ao reatribuir produtos da categoria excluída:', e);
       }
+      pushToCloud({ categories: updatedCategories, products: updatedProducts });
       return updatedProducts;
     });
 
@@ -221,6 +243,7 @@ export default function App() {
     } catch (e) {
       console.error('Erro ao salvar paymentSettings:', e);
     }
+    pushToCloud({ paymentSettings: updated });
   };
 
   // Dynamic CRM Orders State (persisted in localStorage)
@@ -277,6 +300,82 @@ export default function App() {
     };
   }, []);
 
+  // Synchronize entire master store catalog across all devices and browsers
+  useEffect(() => {
+    let isMounted = true;
+
+    const initCloudCatalog = async () => {
+      try {
+        const remote = await fetchRemoteStoreData();
+        if (!isMounted || !remote) return;
+
+        if (Array.isArray(remote.products) && remote.products.length > 0) {
+          setProducts(remote.products);
+          localStorage.setItem('millany_admin_products_v3', JSON.stringify(remote.products));
+        }
+        if (Array.isArray(remote.categories) && remote.categories.length > 0) {
+          setCategories(remote.categories);
+          localStorage.setItem('millany_admin_categories_v1', JSON.stringify(remote.categories));
+        }
+        if (Array.isArray(remote.banners) && remote.banners.length > 0) {
+          setBanners(remote.banners);
+          localStorage.setItem('millany_admin_banners_v2', JSON.stringify(remote.banners));
+        }
+        if (remote.storeInfo && typeof remote.storeInfo === 'object') {
+          setStoreInfo(remote.storeInfo);
+          localStorage.setItem('millany_admin_store_info_v2', JSON.stringify(remote.storeInfo));
+        }
+        if (remote.paymentSettings && typeof remote.paymentSettings === 'object') {
+          setPaymentSettings(remote.paymentSettings);
+          localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(remote.paymentSettings));
+        }
+        if (Array.isArray(remote.crmOrders)) {
+          setCrmOrders(remote.crmOrders);
+          localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(remote.crmOrders));
+        }
+        setCloudSyncState('synced');
+      } catch (err) {
+        console.warn('Erro ao carregar catálogo da nuvem:', err);
+      }
+    };
+
+    initCloudCatalog();
+
+    const unsubscribe = subscribeToStoreSync((remote) => {
+      if (!isMounted || !remote) return;
+      if (Array.isArray(remote.products)) {
+        setProducts(remote.products);
+        localStorage.setItem('millany_admin_products_v3', JSON.stringify(remote.products));
+      }
+      if (Array.isArray(remote.categories)) {
+        setCategories(remote.categories);
+        localStorage.setItem('millany_admin_categories_v1', JSON.stringify(remote.categories));
+      }
+      if (Array.isArray(remote.banners)) {
+        setBanners(remote.banners);
+        localStorage.setItem('millany_admin_banners_v2', JSON.stringify(remote.banners));
+      }
+      if (remote.storeInfo) {
+        setStoreInfo(remote.storeInfo);
+        localStorage.setItem('millany_admin_store_info_v2', JSON.stringify(remote.storeInfo));
+      }
+      if (remote.paymentSettings) {
+        setPaymentSettings(remote.paymentSettings);
+        localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(remote.paymentSettings));
+      }
+      if (Array.isArray(remote.crmOrders)) {
+        setCrmOrders(remote.crmOrders);
+        localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(remote.crmOrders));
+      }
+      setCloudSyncState('synced');
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
   const handleSaveStoreStatus = (updated) => {
     setStoreStatus(updated);
     saveRemoteStoreStatus(updated);
@@ -311,6 +410,7 @@ export default function App() {
   const handleSaveProducts = (newProducts) => {
     setProducts(newProducts);
     localStorage.setItem('millany_admin_products_v3', JSON.stringify(newProducts));
+    pushToCloud({ products: newProducts });
   };
 
   const handleResetProducts = () => {
@@ -318,22 +418,26 @@ export default function App() {
     localStorage.removeItem('millany_admin_products');
     localStorage.removeItem('millany_admin_products_v2');
     localStorage.removeItem('millany_admin_products_v3');
+    pushToCloud({ products: PRODUCTS });
   };
 
   const handleSaveBanners = (newBanners) => {
     setBanners(newBanners);
     localStorage.setItem('millany_admin_banners_v2', JSON.stringify(newBanners));
+    pushToCloud({ banners: newBanners });
   };
 
   const handleResetBanners = () => {
     setBanners(BANNER_SLIDES);
     localStorage.removeItem('millany_admin_banners');
     localStorage.removeItem('millany_admin_banners_v2');
+    pushToCloud({ banners: BANNER_SLIDES });
   };
 
   const handleSaveStoreInfo = (newStoreInfo) => {
     setStoreInfo(newStoreInfo);
     localStorage.setItem('millany_admin_store_info_v2', JSON.stringify(newStoreInfo));
+    pushToCloud({ storeInfo: newStoreInfo });
   };
 
   const handleResetAllData = () => {
@@ -349,6 +453,13 @@ export default function App() {
     localStorage.removeItem('millany_admin_store_info');
     localStorage.removeItem('millany_admin_store_info_v2');
     localStorage.removeItem('millany_admin_categories_v1');
+    pushToCloud({
+      products: PRODUCTS,
+      banners: BANNER_SLIDES,
+      storeInfo: STORE_INFO,
+      categories: CATEGORIES,
+      paymentSettings: DEFAULT_PAYMENT_SETTINGS
+    });
   };
 
   // CRM Handlers
@@ -360,6 +471,7 @@ export default function App() {
       } catch (e) {
         console.error('Erro ao salvar no CRM:', e);
       }
+      pushToCloud({ crmOrders: updated });
       return updated;
     });
   };
@@ -371,6 +483,8 @@ export default function App() {
 
       const isBecomingPaid = newStatus === 'Confirmado / Pago' || newStatus.toLowerCase().includes('pago');
       const wasDeducted = !!targetOrder.stockDeducted;
+
+      let latestProducts = null;
 
       // Deduct stock automatically when order is updated to paid (if not already deducted)
       if (isBecomingPaid && !wasDeducted && Array.isArray(targetOrder.items)) {
@@ -393,7 +507,7 @@ export default function App() {
           } catch (e) {
             console.error('Erro ao atualizar estoque no localStorage:', e);
           }
-
+          latestProducts = updatedProducts;
           return updatedProducts;
         });
       }
@@ -418,12 +532,12 @@ export default function App() {
           } catch (e) {
             console.error('Erro ao restaurar estoque no localStorage:', e);
           }
-
+          latestProducts = updatedProducts;
           return updatedProducts;
         });
       }
 
-      return prevOrders.map((o) => {
+      const updatedOrders = prevOrders.map((o) => {
         if (o.id === orderId) {
           return {
             ...o,
@@ -433,27 +547,51 @@ export default function App() {
         }
         return o;
       });
+
+      try {
+        localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(updatedOrders));
+      } catch (e) {}
+
+      const syncPayload = { crmOrders: updatedOrders };
+      if (latestProducts) syncPayload.products = latestProducts;
+      pushToCloud(syncPayload);
+
+      return updatedOrders;
     });
   };
 
   const handleUpdateOrderNotes = (orderId, notes) => {
-    setCrmOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, notes } : o))
-    );
+    setCrmOrders((prev) => {
+      const updated = prev.map((o) => (o.id === orderId ? { ...o, notes } : o));
+      try {
+        localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(updated));
+      } catch (e) {}
+      pushToCloud({ crmOrders: updated });
+      return updated;
+    });
   };
 
   const handleDeleteOrder = (orderId) => {
-    setCrmOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setCrmOrders((prev) => {
+      const updated = prev.filter((o) => o.id !== orderId);
+      try {
+        localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(updated));
+      } catch (e) {}
+      pushToCloud({ crmOrders: updated });
+      return updated;
+    });
   };
 
   const handleClearAllOrders = () => {
     setCrmOrders([]);
     localStorage.removeItem('millany_admin_crm_orders_v1');
+    pushToCloud({ crmOrders: [] });
   };
 
   const handleSeedDemoOrders = () => {
     setCrmOrders(INITIAL_DEMO_ORDERS);
     localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(INITIAL_DEMO_ORDERS));
+    pushToCloud({ crmOrders: INITIAL_DEMO_ORDERS });
   };
 
   const handleLoginSuccess = () => {
@@ -616,6 +754,7 @@ export default function App() {
         onSavePaymentSettings={handleSavePaymentSettings}
         storeStatus={storeStatus}
         onSaveStoreStatus={handleSaveStoreStatus}
+        cloudSyncState={cloudSyncState}
         onLogout={handleAdminLogout}
       />
     );

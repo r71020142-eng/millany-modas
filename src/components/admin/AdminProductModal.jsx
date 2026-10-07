@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Trash2, Image, Palette, Tag, Check, Star, UploadCloud, Video, Film, Play, Loader2 } from 'lucide-react';
 import { formatBRL } from '../../utils/masks';
 import { isVideoMedia } from '../../utils/media';
+import { compressImageFile } from '../../utils/imageCompressor';
 
 const PRESET_CATEGORIES = [
   'Vestidos',
@@ -93,7 +94,7 @@ export default function AdminProductModal({
   }, [productToEdit]);
 
   // File Upload Handlers (Images JPG/PNG/WEBP and Video MP4)
-  const handleFilesSelected = (files) => {
+  const handleFilesSelected = async (files) => {
     if (!files || files.length === 0) return;
 
     const validFiles = Array.from(files).filter((file) => {
@@ -107,37 +108,27 @@ export default function AdminProductModal({
       return;
     }
 
-    const oversized = validFiles.find((f) => f.size > 50 * 1024 * 1024);
+    const oversized = validFiles.find((f) => f.size > 20 * 1024 * 1024);
     if (oversized) {
-      alert(`O arquivo "${oversized.name}" excede o tamanho recomendado (máx. 50MB).`);
+      alert(`O arquivo "${oversized.name}" excede o tamanho recomendado (máx. 20MB).`);
       return;
     }
 
     setIsUploading(true);
-    let processed = 0;
-    const newMediaUrls = [];
-
-    validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        newMediaUrls.push(e.target.result);
-        processed++;
-        if (processed === validFiles.length) {
-          setFormData((prev) => ({
-            ...prev,
-            images: [...prev.images, ...newMediaUrls]
-          }));
-          setIsUploading(false);
-        }
-      };
-      reader.onerror = () => {
-        processed++;
-        if (processed === validFiles.length) {
-          setIsUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const compressedUrls = await Promise.all(
+        validFiles.map((file) => compressImageFile(file))
+      );
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...compressedUrls]
+      }));
+    } catch (err) {
+      console.error('Erro ao processar imagem:', err);
+      alert('Houve um erro ao processar o arquivo. Tente novamente.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDragOver = (e) => {
