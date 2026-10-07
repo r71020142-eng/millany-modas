@@ -11,21 +11,45 @@ import Footer from './components/Footer';
 import WhatsAppFloating from './components/WhatsAppFloating';
 import AdminDashboard from './components/admin/AdminDashboard';
 import AdminLoginModal from './components/admin/AdminLoginModal';
+import StoreMaintenanceScreen from './components/StoreMaintenanceScreen';
 import { PRODUCTS, CATEGORIES } from './data/products';
 import { BANNER_SLIDES, STORE_INFO } from './data/banners';
 import { INITIAL_DEMO_ORDERS } from './data/demoOrders';
 import { DEFAULT_PAYMENT_SETTINGS } from './data/paymentSettings';
-import { Sparkles, Filter, ChevronDown, Shield, Settings } from 'lucide-react';
+import { DEFAULT_STORE_STATUS, getStoredStoreStatus } from './data/storeStatus';
+import { Sparkles, Filter, ChevronDown, Shield, Settings, PauseCircle, PlayCircle, LogOut } from 'lucide-react';
 
 export default function App() {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('featured');
 
+  // URL Path Routing for /admin
+  const [currentPath, setCurrentPath] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.pathname.toLowerCase();
+    }
+    return '/';
+  });
+
+  const navigateTo = (path) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', path);
+      setCurrentPath(path.toLowerCase());
+    }
+  };
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname.toLowerCase());
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
   // Dynamic Products State (persisted in localStorage with v3 isolation)
   const [products, setProducts] = useState(() => {
     try {
-      // Clear legacy storages to ensure 100% un-mixed verified photos
       localStorage.removeItem('millany_admin_products');
       localStorage.removeItem('millany_admin_products_v2');
       const saved = localStorage.getItem('millany_admin_products_v3');
@@ -92,9 +116,19 @@ export default function App() {
     }
   }, [crmOrders]);
 
-  // Admin Mode States
-  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  // Dynamic Store Status State (Pause / Maintenance mode)
+  const [storeStatus, setStoreStatus] = useState(() => getStoredStoreStatus());
+
+  const handleSaveStoreStatus = (updated) => {
+    setStoreStatus(updated);
+    try {
+      localStorage.setItem('millany_store_status_v1', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Erro ao salvar storeStatus:', e);
+    }
+  };
+
+  // Admin Authentication State
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return localStorage.getItem('millany_admin_authenticated') === 'true';
   });
@@ -199,18 +233,16 @@ export default function App() {
     localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(INITIAL_DEMO_ORDERS));
   };
 
-  const handleOpenAdminTrigger = () => {
-    if (isAdminLoggedIn) {
-      setIsAdminDashboardOpen(true);
-    } else {
-      setIsAdminLoginOpen(true);
-    }
-  };
-
   const handleLoginSuccess = () => {
     setIsAdminLoggedIn(true);
     localStorage.setItem('millany_admin_authenticated', 'true');
-    setIsAdminDashboardOpen(true);
+    navigateTo('/admin');
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminLoggedIn(false);
+    localStorage.removeItem('millany_admin_authenticated');
+    navigateTo('/');
   };
 
   // Cart operations
@@ -304,8 +336,26 @@ export default function App() {
 
   const totalCartCount = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
-  // If Admin Dashboard is active, render full Admin UI!
-  if (isAdminDashboardOpen) {
+  // Check if current route is /admin or #admin
+  const isAdminRoute =
+    currentPath === '/admin' ||
+    currentPath.startsWith('/admin') ||
+    (typeof window !== 'undefined' && window.location.hash.toLowerCase() === '#admin');
+
+  // ROUTE 1: If on /admin and NOT logged in, show Password Login Screen
+  if (isAdminRoute && !isAdminLoggedIn) {
+    return (
+      <AdminLoginModal
+        isOpen={true}
+        isPageMode={true}
+        onLoginSuccess={handleLoginSuccess}
+        onBackToStore={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // ROUTE 2: If on /admin and authenticated, render full Admin UI!
+  if (isAdminRoute && isAdminLoggedIn) {
     return (
       <AdminDashboard
         products={products}
@@ -317,7 +367,7 @@ export default function App() {
         storeInfo={storeInfo}
         onSaveStoreInfo={handleSaveStoreInfo}
         onResetAllData={handleResetAllData}
-        onCloseAdmin={() => setIsAdminDashboardOpen(false)}
+        onCloseAdmin={() => navigateTo('/')}
         orders={crmOrders}
         onUpdateOrderStatus={handleUpdateOrderStatus}
         onUpdateOrderNotes={handleUpdateOrderNotes}
@@ -326,32 +376,100 @@ export default function App() {
         onSeedDemoOrders={handleSeedDemoOrders}
         paymentSettings={paymentSettings}
         onSavePaymentSettings={handleSavePaymentSettings}
+        storeStatus={storeStatus}
+        onSaveStoreStatus={handleSaveStoreStatus}
+        onLogout={handleAdminLogout}
       />
     );
   }
 
-  // Render Customer Storefront
+  // ROUTE 3: If Store is PAUSED and visitor is NOT logged in as Admin, show Maintenance Screen
+  if (storeStatus.isPaused && !isAdminLoggedIn) {
+    return (
+      <StoreMaintenanceScreen
+        storeStatus={storeStatus}
+        storeInfo={storeInfo}
+        onOpenAdminLogin={() => navigateTo('/admin')}
+      />
+    );
+  }
+
+  // ROUTE 4: Render Customer Storefront (or Admin Preview if logged in)
   return (
     <div className="min-h-screen bg-black text-white flex flex-col selection:bg-brand-rose selection:text-white">
       
-      {/* Admin Floating Banner (if user is authenticated) */}
+      {/* Admin Floating Banner (Shown ONLY when Admin is authenticated) */}
       {isAdminLoggedIn && (
-        <div className="bg-brand-gold/10 border-b border-brand-gold/30 px-4 py-1.5 text-xs flex items-center justify-between text-brand-gold z-40">
+        <div
+          className={`px-4 py-2 text-xs flex flex-col sm:flex-row items-center justify-between gap-2 z-50 transition-colors ${
+            storeStatus.isPaused
+              ? 'bg-amber-950/80 border-b border-amber-500/50 text-amber-200'
+              : 'bg-brand-card/90 border-b border-brand-border text-gray-300'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5" />
-            <span className="font-semibold">Modo Administrador Ativo</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                storeStatus.isPaused ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+              }`}
+            />
+            <span className="font-semibold">
+              {storeStatus.isPaused
+                ? '⚠️ MODO PAUSA ATIVO: Visitantes externos veem a tela de manutenção. Você tem acesso exclusivo de administrador.'
+                : 'Modo Administrador Ativo (Loja 100% Online ao Público)'}
+            </span>
           </div>
-          <button
-            onClick={() => setIsAdminDashboardOpen(true)}
-            className="px-3 py-0.5 bg-brand-rose text-white rounded font-bold uppercase text-[10px] hover:bg-brand-rose-dark transition-colors flex items-center gap-1"
-          >
-            <Settings className="w-3 h-3" />
-            <span>Abrir Painel Admin</span>
-          </button>
+
+          <div className="flex items-center gap-2">
+            {storeStatus.isPaused ? (
+              <button
+                onClick={() =>
+                  handleSaveStoreStatus({ ...storeStatus, isPaused: false, pausedAt: null })
+                }
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold uppercase text-[10px] transition-colors flex items-center gap-1"
+                title="Tornar a loja pública novamente"
+              >
+                <PlayCircle className="w-3 h-3" />
+                <span>Reativar Loja</span>
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  handleSaveStoreStatus({
+                    ...storeStatus,
+                    isPaused: true,
+                    pausedAt: new Date().toISOString()
+                  })
+                }
+                className="px-3 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded font-bold uppercase text-[10px] transition-colors flex items-center gap-1"
+                title="Pausar a loja para visitantes"
+              >
+                <PauseCircle className="w-3 h-3" />
+                <span>Pausar Loja</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => navigateTo('/admin')}
+              className="px-3 py-1 bg-brand-rose hover:bg-brand-rose-dark text-white rounded font-bold uppercase text-[10px] transition-colors flex items-center gap-1"
+            >
+              <Settings className="w-3 h-3" />
+              <span>Painel Admin</span>
+            </button>
+
+            <button
+              onClick={handleAdminLogout}
+              className="px-2.5 py-1 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded text-[10px] uppercase font-semibold transition-colors flex items-center gap-1"
+              title="Desconectar do Admin"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Sair</span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* 1. Header */}
+      {/* 1. Header (Clean: No Admin button for visitors) */}
       <Header
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
@@ -360,7 +478,6 @@ export default function App() {
         onSearch={setSearchQuery}
         searchQuery={searchQuery}
         onOpenContact={() => setIsContactOpen(true)}
-        onOpenAdmin={handleOpenAdminTrigger}
         storeInfo={storeInfo}
         paymentSettings={paymentSettings}
       />
@@ -400,7 +517,6 @@ export default function App() {
 
           {/* Controls: Category Pills & Sort */}
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Sort Selector */}
             <div className="relative">
               <select
                 value={sortOption}
@@ -505,17 +621,10 @@ export default function App() {
         onClose={() => setIsContactOpen(false)}
       />
 
-      {/* Admin Login Modal */}
-      <AdminLoginModal
-        isOpen={isAdminLoginOpen}
-        onClose={() => setIsAdminLoginOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
-
       {/* 6. Floating WhatsApp Button */}
       <WhatsAppFloating />
 
-      {/* 7. Footer */}
+      {/* 7. Footer (Clean: Designer credit is @ray.pires_, no admin button) */}
       <Footer
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
@@ -523,7 +632,6 @@ export default function App() {
           window.scrollTo({ top: 400, behavior: 'smooth' });
         }}
         onOpenContact={() => setIsContactOpen(true)}
-        onOpenAdmin={handleOpenAdminTrigger}
         storeInfo={storeInfo}
         paymentSettings={paymentSettings}
       />

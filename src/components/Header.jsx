@@ -79,16 +79,8 @@ export default function Header({
             </a>
           </div>
 
-          {/* Right: WhatsApp, Admin & Cart */}
+          {/* Right: WhatsApp & Cart */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <button
-              onClick={onOpenAdmin}
-              className="p-2 text-brand-gold hover:text-brand-rose transition-colors flex items-center gap-1.5 text-xs uppercase tracking-wider group"
-              title="Painel Administrativo"
-            >
-              <Shield className="w-5 h-5 text-brand-gold group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-gray-300 font-semibold group-hover:text-white">Admin</span>
-            </button>
 
             <a
               href={`https://wa.me/${storeInfo?.orderWhatsApp || STORE_INFO.orderWhatsApp}?text=${encodeURIComponent('Olá Millany Modas! Gostaria de tirar uma dúvida.')}`}
@@ -233,14 +225,6 @@ export default function Header({
           >
             Contato
           </button>
-
-          <button
-            onClick={onOpenAdmin}
-            className="text-brand-gold hover:text-white transition-colors pb-1 border-b-2 border-transparent flex items-center gap-1 font-bold"
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Admin</span>
-          </button>
         </nav>
       </div>
 
@@ -282,14 +266,6 @@ export default function Header({
                   className="text-left py-2 px-3 text-gray-400 hover:bg-white/5 rounded-lg"
                 >
                   Contato & Loja Física
-                </button>
-
-                <button
-                  onClick={() => { setMobileMenuOpen(false); onOpenAdmin(); }}
-                  className="text-left py-2 px-3 text-brand-gold hover:bg-brand-rose/20 rounded-lg flex items-center gap-2 font-bold"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Painel Administrativo</span>
                 </button>
               </div>
             </div>

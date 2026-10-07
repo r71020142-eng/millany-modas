@@ -1,21 +1,63 @@
 import React, { useState } from 'react';
-import { Save, RotateCcw, Download, Upload, Check, AlertTriangle, MessageCircle, Phone, MapPin, Percent, Truck } from 'lucide-react';
+import {
+  Save,
+  RotateCcw,
+  Download,
+  Upload,
+  Check,
+  AlertTriangle,
+  MessageCircle,
+  Phone,
+  MapPin,
+  Percent,
+  Truck,
+  PauseCircle,
+  PlayCircle,
+  Clock,
+  ShieldAlert
+} from 'lucide-react';
+import { DEFAULT_STORE_STATUS } from '../../data/storeStatus';
 
 export default function AdminSettings({
   storeInfo,
   onSaveStoreInfo,
   onExportData,
   onImportData,
-  onResetAllData
+  onResetAllData,
+  storeStatus = DEFAULT_STORE_STATUS,
+  onSaveStoreStatus
 }) {
   const [formData, setFormData] = useState({ ...storeInfo });
+  const [statusData, setStatusData] = useState({ ...DEFAULT_STORE_STATUS, ...storeStatus });
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [statusSavedSuccess, setStatusSavedSuccess] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSaveStoreInfo(formData);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
+  };
+
+  const handleStatusSubmit = (e) => {
+    e.preventDefault();
+    if (onSaveStoreStatus) {
+      onSaveStoreStatus(statusData);
+    }
+    setStatusSavedSuccess(true);
+    setTimeout(() => setStatusSavedSuccess(false), 2500);
+  };
+
+  const handleTogglePause = (newPausedState) => {
+    const updated = {
+      ...statusData,
+      isPaused: newPausedState,
+      pausedAt: newPausedState ? new Date().toISOString() : null
+    };
+    setStatusData(updated);
+    if (onSaveStoreStatus) {
+      onSaveStoreStatus(updated);
+    }
   };
 
   const handleFileImport = (e) => {
@@ -37,6 +79,139 @@ export default function AdminSettings({
   return (
     <div className="space-y-6 text-left max-w-4xl mx-auto">
       
+      {/* 0. PAUSE STORE / MAINTENANCE MODE SECTION */}
+      <div
+        className={`p-6 rounded-2xl border transition-all shadow-xl ${
+          statusData.isPaused
+            ? 'bg-amber-950/30 border-amber-500/50'
+            : 'bg-brand-card border-brand-border'
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-brand-border/60 gap-4">
+          <div className="flex items-start gap-3">
+            <div
+              className={`p-3 rounded-2xl ${
+                statusData.isPaused
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+              }`}
+            >
+              {statusData.isPaused ? (
+                <PauseCircle className="w-6 h-6" />
+              ) : (
+                <PlayCircle className="w-6 h-6" />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-serif text-white font-bold">
+                  Status da Loja: {statusData.isPaused ? 'Pausada (Em Manutenção)' : 'Aberta ao Público (Online)'}
+                </h3>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                    statusData.isPaused
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  }`}
+                >
+                  {statusData.isPaused ? 'Visitantes Bloqueados' : '100% Online'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {statusData.isPaused
+                  ? 'A loja está oculta para visitantes comuns. Apenas você (administrador logado) pode navegar e adicionar produtos com calma.'
+                  : 'Sua vitrine está aberta e todos os visitantes podem navegar e comprar.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Toggle Button */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleTogglePause(!statusData.isPaused)}
+              className={`px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs transition-all shadow-lg flex items-center gap-2 ${
+                statusData.isPaused
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-amber-600 hover:bg-amber-500 text-white'
+              }`}
+            >
+              {statusData.isPaused ? (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  <span>Reativar Loja</span>
+                </>
+              ) : (
+                <>
+                  <PauseCircle className="w-4 h-4" />
+                  <span>Pausar Loja Agora</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Customized Maintenance Message Form */}
+        <form onSubmit={handleStatusSubmit} className="pt-5 space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-gray-300 font-semibold block mb-1">
+                Título do Aviso de Pausa
+              </label>
+              <input
+                type="text"
+                value={statusData.pausedTitle}
+                onChange={(e) => setStatusData({ ...statusData, pausedTitle: e.target.value })}
+                placeholder="Ex: Estamos preparando novidades! ✨"
+                className="w-full bg-brand-dark text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-gray-300 font-semibold block mb-1">
+                Previsão de Retorno (opcional)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={statusData.estimatedReturn}
+                  onChange={(e) => setStatusData({ ...statusData, estimatedReturn: e.target.value })}
+                  placeholder="Ex: Voltamos hoje às 18h / Em instantes"
+                  className="w-full bg-brand-dark text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none pl-9"
+                />
+                <Clock className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-gray-300 font-semibold block mb-1">
+              Mensagem explicativa para os clientes
+            </label>
+            <textarea
+              rows={2}
+              value={statusData.pausedMessage}
+              onChange={(e) => setStatusData({ ...statusData, pausedMessage: e.target.value })}
+              placeholder="Ex: Nossa loja virtual está temporariamente pausada para atualização de estoque..."
+              className="w-full bg-brand-dark text-white px-3.5 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-[11px] text-gray-400">
+              * Visitantes verão estes textos e botões diretos para seu WhatsApp e Instagram.
+            </span>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-brand-card hover:bg-white/10 text-white rounded-lg border border-brand-border text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              {statusSavedSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5 text-brand-rose" />}
+              <span>{statusSavedSuccess ? 'Mensagem Salva!' : 'Salvar Textos de Pausa'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* 1. Store Config Form */}
       <form onSubmit={handleSubmit} className="p-6 rounded-2xl bg-brand-card border border-brand-border space-y-6 shadow-xl">
         <div className="flex items-center justify-between pb-4 border-b border-brand-border">

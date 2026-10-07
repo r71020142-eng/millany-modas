@@ -39,7 +39,10 @@ export default function AdminDashboard({
   onClearAllOrders,
   onSeedDemoOrders,
   paymentSettings,
-  onSavePaymentSettings
+  onSavePaymentSettings,
+  storeStatus,
+  onSaveStoreStatus,
+  onLogout
 }) {
   const [activeTab, setActiveTab] = useState('crm'); // 'crm' | 'produtos' | 'banners' | 'reviews' | 'pagamentos' | 'config'
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -226,15 +229,65 @@ export default function AdminDashboard({
             </button>
           </div>
 
-          {/* Action: Ver Loja */}
+          {/* Actions: Status da Loja, Ver Loja, Logout */}
           <div className="flex items-center gap-2">
+            {/* Quick Pause / Active Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                const newPaused = !storeStatus?.isPaused;
+                const updated = {
+                  ...storeStatus,
+                  isPaused: newPaused,
+                  pausedAt: newPaused ? new Date().toISOString() : null
+                };
+                if (onSaveStoreStatus) {
+                  onSaveStoreStatus(updated);
+                }
+                showToast(newPaused ? 'Loja PAUSADA para visitantes!' : 'Loja REATIVADA para o público!');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all border ${
+                storeStatus?.isPaused
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+              }`}
+              title={
+                storeStatus?.isPaused
+                  ? 'Loja Pausada para visitantes. Clique para reativar.'
+                  : 'Loja aberta ao público. Clique para pausar.'
+              }
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  storeStatus?.isPaused ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+                }`}
+              />
+              <span className="hidden sm:inline">
+                {storeStatus?.isPaused ? 'Pausada' : 'No Ar'}
+              </span>
+            </button>
+
+            {/* Ver Loja */}
             <button
               onClick={onCloseAdmin}
-              className="px-4 py-2 bg-brand-rose hover:bg-brand-rose-dark text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1.5"
+              className="px-3.5 py-1.5 bg-brand-rose hover:bg-brand-rose-dark text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1.5"
+              title="Visualizar loja virtual"
             >
-              <Eye className="w-4 h-4" />
-              <span className="hidden md:inline">Ver Loja Virtual</span>
+              <Eye className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Ver Loja</span>
             </button>
+
+            {/* Logout */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-xl transition-colors flex items-center gap-1 text-xs"
+                title="Sair do Painel Admin"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden lg:inline text-xs">Sair</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -296,6 +349,11 @@ export default function AdminDashboard({
             onSaveStoreInfo={(updated) => {
               onSaveStoreInfo(updated);
               showToast('Configurações salvas!');
+            }}
+            storeStatus={storeStatus}
+            onSaveStoreStatus={(updated) => {
+              if (onSaveStoreStatus) onSaveStoreStatus(updated);
+              showToast('Status da loja atualizado!');
             }}
             onExportData={handleExportData}
             onImportData={handleImportData}

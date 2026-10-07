@@ -188,11 +188,20 @@ export default function Footer({
               </div>
 
               <div className="pt-2">
-                <img
-                  src="https://dcdn-us.mitiendanube.com/stores/007/383/278/themes/rio/img-5153883486201418421-1772823060-1344eb69aefffe07b4aacffe2af21fe91772823060.png?3985396074516041665"
-                  alt="Selo Millany Modas"
-                  className="h-10 w-auto opacity-80 hover:opacity-100 transition-opacity"
-                />
+                <a
+                  href="https://instagram.com/ray.pires_"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex flex-col items-center p-2.5 rounded-xl bg-brand-card/60 hover:bg-brand-card border border-brand-border/60 hover:border-brand-rose transition-all group"
+                  title="Desenvolvido por @ray.pires_"
+                >
+                  <span className="text-[10px] text-gray-400 group-hover:text-gray-200 transition-colors flex items-center gap-1 font-sans">
+                    Desenvolvido por: <span className="text-brand-rose">♡</span>
+                  </span>
+                  <span className="text-xs font-serif font-bold text-brand-rose-light group-hover:text-white transition-colors tracking-wide mt-0.5">
+                    @ray.pires_
+                  </span>
+                </a>
               </div>
             </div>
           </div>
@@ -221,16 +230,18 @@ export default function Footer({
             ))}
           </div>
 
-          {/* Copyright */}
+          {/* Copyright & Designer */}
           <div className="text-[11px] text-gray-500 text-center md:text-right flex items-center justify-center md:justify-end gap-2 flex-wrap">
             <p>Copyright Millany Modas - 2026. Todos os direitos reservados.</p>
             <span>•</span>
-            <button
-              onClick={onOpenAdmin}
-              className="text-gray-500 hover:text-brand-gold transition-colors underline"
+            <a
+              href="https://instagram.com/ray.pires_"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-brand-rose transition-colors inline-flex items-center gap-1"
             >
-              Painel Admin
-            </button>
+              Desenvolvido por <span className="text-brand-rose font-medium">@ray.pires_</span>
+            </a>
           </div>
         </div>
       </div>
