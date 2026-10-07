@@ -14,9 +14,11 @@ import {
   Sparkles,
   ToggleLeft,
   ToggleRight,
-  Info
+  Info,
+  Pencil
 } from 'lucide-react';
 import { formatBRL } from '../../utils/masks';
+import AdminCouponModal from './AdminCouponModal';
 
 const AVAILABLE_BRANDS = ['Visa', 'Mastercard', 'Elo', 'Hipercard', 'Amex', 'Diners'];
 
@@ -26,17 +28,11 @@ export default function AdminPaymentSettings({
 }) {
   const [settings, setSettings] = useState(JSON.parse(JSON.stringify(paymentSettings)));
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
-  // New Coupon Form state
-  const [isAddingCoupon, setIsAddingCoupon] = useState(false);
-  const [newCoupon, setNewCoupon] = useState({
-    code: '',
-    type: 'percent',
-    value: 10,
-    minOrder: 0,
-    description: '',
-    active: true
-  });
+  // Coupon Modal state (supports creating and editing existing coupons)
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
+  const [couponToEdit, setCouponToEdit] = useState(null);
 
   // Submit main form
   const handleSave = (e) => {
@@ -63,57 +59,70 @@ export default function AdminPaymentSettings({
     });
   };
 
-  // Coupon Actions
-  const handleAddCoupon = (e) => {
-    e.preventDefault();
-    if (!newCoupon.code.trim()) return;
+  // Coupon Actions: Create, Edit, Toggle, Delete
+  const handleOpenAddCoupon = () => {
+    setCouponToEdit(null);
+    setIsCouponModalOpen(true);
+  };
 
-    const codeClean = newCoupon.code.trim().toUpperCase().replace(/\s+/g, '');
-    const exists = settings.coupons.some((c) => c.code === codeClean);
-    if (exists) {
-      alert('Já existe um cupom com este código!');
-      return;
-    }
+  const handleOpenEditCoupon = (coupon) => {
+    setCouponToEdit(coupon);
+    setIsCouponModalOpen(true);
+  };
 
-    const created = {
-      id: `cp_${Date.now()}`,
-      code: codeClean,
-      type: newCoupon.type,
-      value: parseFloat(newCoupon.value) || 0,
-      minOrder: parseFloat(newCoupon.minOrder) || 0,
-      description: newCoupon.description.trim() || `${newCoupon.value}${newCoupon.type === 'percent' ? '%' : ' R$'} de desconto`,
-      active: true
-    };
+  const handleSaveCoupon = (savedCoupon) => {
+    setSettings((prev) => {
+      const existingIdx = prev.coupons.findIndex((c) => c.id === savedCoupon.id);
+      let updatedCoupons;
+      if (existingIdx > -1) {
+        updatedCoupons = [...prev.coupons];
+        updatedCoupons[existingIdx] = savedCoupon;
+      } else {
+        updatedCoupons = [savedCoupon, ...prev.coupons];
+      }
 
-    setSettings((prev) => ({
-      ...prev,
-      coupons: [...prev.coupons, created]
-    }));
+      const updatedSettings = {
+        ...prev,
+        coupons: updatedCoupons
+      };
 
-    setNewCoupon({
-      code: '',
-      type: 'percent',
-      value: 10,
-      minOrder: 0,
-      description: '',
-      active: true
+      // Auto-save immediately to localStorage
+      if (onSavePaymentSettings) {
+        onSavePaymentSettings(updatedSettings);
+      }
+
+      return updatedSettings;
     });
-    setIsAddingCoupon(false);
+
+    setToastMsg(couponToEdit ? 'Cupom atualizado com sucesso!' : 'Novo cupom cadastrado com sucesso!');
+    setTimeout(() => setToastMsg(''), 3000);
   };
 
   const handleToggleCoupon = (id) => {
-    setSettings((prev) => ({
-      ...prev,
-      coupons: prev.coupons.map((c) => (c.id === id ? { ...c, active: !c.active } : c))
-    }));
+    setSettings((prev) => {
+      const updatedCoupons = prev.coupons.map((c) =>
+        c.id === id ? { ...c, active: !c.active } : c
+      );
+      const updatedSettings = { ...prev, coupons: updatedCoupons };
+      if (onSavePaymentSettings) {
+        onSavePaymentSettings(updatedSettings);
+      }
+      return updatedSettings;
+    });
   };
 
-  const handleDeleteCoupon = (id) => {
-    if (window.confirm('Tem certeza que deseja remover este cupom?')) {
-      setSettings((prev) => ({
-        ...prev,
-        coupons: prev.coupons.filter((c) => c.id !== id)
-      }));
+  const handleDeleteCoupon = (id, code) => {
+    if (window.confirm(`Tem certeza que deseja excluir o cupom "${code || 'selecionado'}"?`)) {
+      setSettings((prev) => {
+        const updatedCoupons = prev.coupons.filter((c) => c.id !== id);
+        const updatedSettings = { ...prev, coupons: updatedCoupons };
+        if (onSavePaymentSettings) {
+          onSavePaymentSettings(updatedSettings);
+        }
+        return updatedSettings;
+      });
+      setToastMsg('Cupom excluído com sucesso!');
+      setTimeout(() => setToastMsg(''), 3000);
     }
   };
 
@@ -546,108 +555,13 @@ export default function AdminPaymentSettings({
 
           <button
             type="button"
-            onClick={() => setIsAddingCoupon(!isAddingCoupon)}
+            onClick={handleOpenAddCoupon}
             className="px-4 py-2 bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            <span>{isAddingCoupon ? 'Fechar' : 'Novo Cupom'}</span>
+            <span>Novo Cupom</span>
           </button>
         </div>
-
-        {/* Formulário Novo Cupom */}
-        {isAddingCoupon && (
-          <form
-            onSubmit={handleAddCoupon}
-            className="p-5 rounded-xl bg-black/60 border border-emerald-500/40 space-y-4 animate-fadeIn"
-          >
-            <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4" /> Cadastrar Novo Cupom Promocional
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-              <div>
-                <label className="text-gray-300 font-semibold block mb-1">
-                  Código do Cupom *
-                </label>
-                <input
-                  type="text"
-                  value={newCoupon.code}
-                  onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
-                  placeholder="EX: VERAO15"
-                  required
-                  className="w-full bg-brand-card text-white font-mono uppercase px-3 py-2 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-300 font-semibold block mb-1">
-                  Tipo de Desconto *
-                </label>
-                <select
-                  value={newCoupon.type}
-                  onChange={(e) => setNewCoupon({ ...newCoupon, type: e.target.value })}
-                  className="w-full bg-brand-card text-white px-3 py-2 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
-                >
-                  <option value="percent">Porcentagem (% OFF)</option>
-                  <option value="fixed">Valor Fixo (R$ OFF)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-gray-300 font-semibold block mb-1">
-                  Valor do Desconto *
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0.5"
-                  value={newCoupon.value}
-                  onChange={(e) => setNewCoupon({ ...newCoupon, value: parseFloat(e.target.value) || 0 })}
-                  placeholder={newCoupon.type === 'percent' ? '10' : '20'}
-                  required
-                  className="w-full bg-brand-card text-white font-mono px-3 py-2 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-300 font-semibold block mb-1">
-                  Pedido Mínimo (R$)
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={newCoupon.minOrder}
-                  onChange={(e) => setNewCoupon({ ...newCoupon, minOrder: parseFloat(e.target.value) || 0 })}
-                  placeholder="0 (sem mínimo)"
-                  className="w-full bg-brand-card text-white font-mono px-3 py-2 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="text-gray-300 font-semibold block mb-1">
-                  Descrição Amigável
-                </label>
-                <input
-                  type="text"
-                  value={newCoupon.description}
-                  onChange={(e) => setNewCoupon({ ...newCoupon, description: e.target.value })}
-                  placeholder="Ex: 15% de desconto especial de verão"
-                  className="w-full bg-brand-card text-white px-3 py-2 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none"
-                />
-              </div>
-
-              <div className="sm:col-span-1 flex items-end">
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Check className="w-4 h-4" /> Adicionar
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
 
         {/* Tabela de Cupons */}
         <div className="rounded-xl border border-brand-border overflow-hidden bg-black/40">
@@ -659,7 +573,7 @@ export default function AdminPaymentSettings({
                 <th className="py-3 px-4">Pedido Mínimo</th>
                 <th className="py-3 px-4">Descrição</th>
                 <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-right">Ação</th>
+                <th className="py-3 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -692,22 +606,34 @@ export default function AdminPaymentSettings({
                         onClick={() => handleToggleCoupon(coupon.id)}
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
                           coupon.active
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                            : 'bg-red-500/20 text-red-400 border-red-500/40'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30'
+                            : 'bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30'
                         }`}
+                        title={coupon.active ? 'Clique para pausar cupom' : 'Clique para ativar cupom'}
                       >
-                        {coupon.active ? 'Ativo' : 'Pausado'}
+                        {coupon.active ? '🟢 Ativo' : '🔴 Pausado'}
                       </button>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCoupon(coupon.id)}
-                        className="p-1.5 bg-brand-card hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-colors border border-brand-border"
-                        title="Excluir cupom"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCoupon(coupon)}
+                          className="px-2.5 py-1.5 bg-brand-card hover:bg-brand-rose text-gray-300 hover:text-white rounded-lg transition-colors border border-brand-border flex items-center gap-1 text-[11px] font-semibold"
+                          title="Editar este cupom"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-brand-gold" />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                          className="p-1.5 bg-brand-card hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-colors border border-brand-border"
+                          title="Excluir cupom"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -716,6 +642,23 @@ export default function AdminPaymentSettings({
           </table>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-bounce border border-emerald-400">
+          <Check className="w-4 h-4" />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
+      {/* Edit / Create Coupon Modal */}
+      <AdminCouponModal
+        isOpen={isCouponModalOpen}
+        onClose={() => setIsCouponModalOpen(false)}
+        couponToEdit={couponToEdit}
+        existingCoupons={settings.coupons}
+        onSaveCoupon={handleSaveCoupon}
+      />
 
     </div>
   );

@@ -41,27 +41,27 @@ export default function CartDrawer({
     if (!code) return;
 
     const availableCoupons = paymentSettings?.coupons || [];
-    const found = availableCoupons.find((c) => c.code.toUpperCase() === code && c.active);
+    const matchedCoupon = availableCoupons.find((c) => c.code.toUpperCase() === code);
 
-    if (found) {
-      if (found.minOrder > 0 && subtotal < found.minOrder) {
-        setCouponError(`Este cupom requer pedido mínimo de ${formatBRL(found.minOrder)}`);
+    if (matchedCoupon) {
+      if (!matchedCoupon.active) {
+        setCouponError('Este cupom está temporariamente desativado.');
+        return;
+      }
+      if (matchedCoupon.minOrder > 0 && subtotal < matchedCoupon.minOrder) {
+        setCouponError(`Este cupom requer pedido mínimo de ${formatBRL(matchedCoupon.minOrder)}`);
         return;
       }
       onApplyCoupon({
-        code: found.code,
-        type: found.type,
-        value: found.value,
-        name: found.description || `${found.value}${found.type === 'percent' ? '%' : ' R$'} OFF`
+        code: matchedCoupon.code,
+        type: matchedCoupon.type,
+        value: matchedCoupon.value,
+        name: matchedCoupon.description || `${matchedCoupon.value}${matchedCoupon.type === 'percent' ? '%' : ' R$'} OFF`
       });
       setCouponCode('');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-    } else if (code === 'BEMVINDA10' || code === 'PRIMEIRACOMPRA') {
-      onApplyCoupon({ code, type: 'percent', value: 10, name: '10% de Boas-Vindas' });
-      setCouponCode('');
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
     } else {
-      setCouponError('Cupom inválido ou expirado.');
+      setCouponError('Cupom inválido ou não encontrado.');
     }
   };
 
