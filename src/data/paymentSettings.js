@@ -1,9 +1,9 @@
-import { formatBRL } from '../utils/masks';
+import { formatBRL } from '../utils/masks.js';
 
 export const DEFAULT_PAYMENT_SETTINGS = {
   pix: {
     enabled: true,
-    discountPercent: 1, // e.g. 1%, 5%, 10%
+    discountPercent: 0, // Pix sem desconto adicional por padrão
     keyType: 'Telefone', // 'Telefone' | 'CPF' | 'CNPJ' | 'E-mail' | 'Aleatória'
     key: '3180393768',
     recipient: 'Millany Modas / Rayane Pires',
@@ -14,7 +14,7 @@ export const DEFAULT_PAYMENT_SETTINGS = {
   creditCard: {
     enabled: true,
     maxInstallments: 12,
-    interestFreeInstallments: 3, // ex: até 3x sem juros
+    interestFreeInstallments: 0, // 0 ou 1 = 1x com juros (todas as parcelas com juros)
     monthlyInterestRate: 1.95, // % a.m. para parcelas com acréscimo
     minInstallmentValue: 15.00,
     acceptedBrands: ['Visa', 'Mastercard', 'Elo', 'Hipercard', 'Amex'],
@@ -60,28 +60,31 @@ export const DEFAULT_PAYMENT_SETTINGS = {
 export const calculatePixPrice = (priceNumber, paymentSettings) => {
   const num = typeof priceNumber === 'number' ? priceNumber : parseFloat(priceNumber) || 0;
   if (!paymentSettings?.pix?.enabled) return num;
-  const discount = (num * (paymentSettings.pix.discountPercent || 0)) / 100;
+  const discount = (num * (paymentSettings?.pix?.discountPercent || 0)) / 100;
   return Math.max(0, num - discount);
 };
 
 export const calculateInstallments = (priceNumber, paymentSettings) => {
   const num = typeof priceNumber === 'number' ? priceNumber : parseFloat(priceNumber) || 0;
   const maxInst = paymentSettings?.creditCard?.maxInstallments || 12;
-  const interestFree = paymentSettings?.creditCard?.interestFreeInstallments || 3;
+  const interestFree = Number(paymentSettings?.creditCard?.interestFreeInstallments ?? 0);
   const rate = paymentSettings?.creditCard?.monthlyInterestRate || 1.95;
 
-  if (interestFree >= maxInst) {
+  if (interestFree >= maxInst && interestFree > 0) {
     const val = num / maxInst;
     return `${maxInst}x de ${formatBRL(val)} sem juros`;
   }
 
-  // Juros aplicado sobre parcelas excedentes
+  // Se for 0 ou 1x com juros
+  if (interestFree <= 1) {
+    const extraFactor = 1 + (rate * maxInst) / 100;
+    const val = (num * extraFactor) / maxInst;
+    return `${maxInst}x de ${formatBRL(val)} (1x com juros)`;
+  }
+
+  // Juros aplicado sobre parcelas excedentes além de interestFree
   const extraFactor = 1 + (rate * (maxInst - interestFree)) / 100;
   const val = (num * extraFactor) / maxInst;
 
-  if (interestFree > 1) {
-    return `${maxInst}x de ${formatBRL(val)} (${interestFree}x sem juros)`;
-  }
-
-  return `${maxInst}x de ${formatBRL(val)}`;
+  return `${maxInst}x de ${formatBRL(val)} (${interestFree}x sem juros)`;
 };

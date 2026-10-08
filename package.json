@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:sync": "node test_cloud_sync_integration.js"
+    "test:sync": "node test_cloud_sync_integration.js",
+    "test:e2e": "node test_e2e_features.js"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

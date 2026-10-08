@@ -15,8 +15,11 @@ export default function ProductQuickView({
 }) {
   if (!product) return null;
 
-  const isOutOfStock = typeof product.stock === 'number' && product.stock <= 0;
-  const maxStock = typeof product.stock === 'number' ? product.stock : 99;
+  const parsedStock = product.stock !== undefined && product.stock !== null && product.stock !== ''
+    ? Number(product.stock)
+    : null;
+  const isOutOfStock = (parsedStock !== null && !isNaN(parsedStock) && parsedStock <= 0) || product.inStock === false;
+  const maxStock = parsedStock !== null && !isNaN(parsedStock) ? Math.max(0, parsedStock) : 99;
 
   const [selectedImg, setSelectedImg] = useState(
     product.images?.[0] || 'https://dcdn-us.mitiendanube.com/stores/007/383/278/themes/common/logo-5750615331560322054-1772765030-b58e30fa0945ba0392e06afb0e2901951772765030-480-0.webp'
@@ -35,6 +38,7 @@ export default function ProductQuickView({
   const ratingStats = getProductRatingStats(product.id);
 
   const handleAdd = () => {
+    if (isOutOfStock) return;
     onAddToCart({
       ...product,
       color: selectedColor,
@@ -49,6 +53,7 @@ export default function ProductQuickView({
   };
 
   const handleCheckoutDirect = () => {
+    if (isOutOfStock) return;
     onAddToCart({
       ...product,
       color: selectedColor,
@@ -224,10 +229,12 @@ export default function ProductQuickView({
                     <span className="text-sm font-semibold text-brand-pix">
                       {paymentSettings
                         ? formatBRL(calculatePixPrice(product.price_number, paymentSettings))
-                        : (product.pix_price || formatBRL(product.price_number * 0.99))}
+                        : formatBRL(product.price_number)}
                     </span>
                     <span className="text-xs text-gray-300">
-                      com Pix {paymentSettings?.pix?.discountPercent > 0 ? `(${paymentSettings.pix.discountPercent}% de desconto)` : ''}
+                      {paymentSettings?.pix?.discountPercent > 0
+                        ? `com Pix (${paymentSettings.pix.discountPercent}% de desconto)`
+                        : 'no Pix à vista'}
                     </span>
                   </div>
                 )}
@@ -332,9 +339,9 @@ export default function ProductQuickView({
                   <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
                   <span>Este produto está temporariamente <strong>sem estoque</strong>. Aguarde reposição ou tire dúvidas no WhatsApp!</span>
                 </div>
-              ) : typeof product.stock === 'number' && product.stock <= 3 ? (
+              ) : parsedStock !== null && parsedStock <= 3 ? (
                 <div className="mt-3 text-xs text-amber-400 font-bold flex items-center gap-1.5">
-                  <span>⚡ Restam apenas {product.stock} unidades disponíveis em nosso estoque!</span>
+                  <span>⚡ Restam apenas {parsedStock} unidades disponíveis em nosso estoque!</span>
                 </div>
               ) : null}
 

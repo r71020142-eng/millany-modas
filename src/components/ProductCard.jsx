@@ -18,7 +18,10 @@ export default function ProductCard({
     product.colors && product.colors.length > 0 ? product.colors[0].name : ''
   );
 
-  const isOutOfStock = typeof product.stock === 'number' && product.stock <= 0;
+  const parsedStock = product.stock !== undefined && product.stock !== null && product.stock !== ''
+    ? Number(product.stock)
+    : null;
+  const isOutOfStock = (parsedStock !== null && !isNaN(parsedStock) && parsedStock <= 0) || product.inStock === false;
   const ratingStats = getProductRatingStats(product.id);
 
   const mainImg = product.images && product.images.length > 0
@@ -50,7 +53,7 @@ export default function ProductCard({
     <div
       className={`group relative rounded-xl overflow-hidden transition-all duration-300 flex flex-col justify-between ${
         isOutOfStock
-          ? 'bg-zinc-950/90 border border-zinc-800 opacity-75 grayscale hover:grayscale-0 shadow-none'
+          ? 'bg-zinc-950/90 border border-zinc-800 opacity-60 grayscale shadow-none'
           : 'bg-brand-card/80 border border-brand-border/80 hover:border-brand-rose/60 hover:shadow-xl hover:shadow-brand-rose/10'
       }`}
       onMouseEnter={() => setIsHovered(true)}
@@ -193,16 +196,18 @@ export default function ProductCard({
               {product.price || formatBRL(product.price_number)}
             </span>
 
-            {/* Pix Discount */}
+            {/* Pix */}
             {paymentSettings?.pix?.enabled !== false ? (
               <div className="text-xs text-brand-pix font-medium mt-0.5 flex items-center gap-1">
                 <span>
                   {paymentSettings
                     ? formatBRL(calculatePixPrice(product.price_number, paymentSettings))
-                    : (product.pix_price || formatBRL(product.price_number * 0.99))}
+                    : formatBRL(product.price_number)}
                 </span>
                 <span className="text-[10px] text-gray-300">
-                  com Pix {paymentSettings?.pix?.discountPercent > 0 ? `(${paymentSettings.pix.discountPercent}% OFF)` : ''}
+                  {paymentSettings?.pix?.discountPercent > 0
+                    ? `com Pix (${paymentSettings.pix.discountPercent}% OFF)`
+                    : 'no Pix'}
                 </span>
               </div>
             ) : null}
@@ -219,11 +224,12 @@ export default function ProductCard({
             {/* Stock indicator note */}
             {isOutOfStock ? (
               <div className="text-[11px] font-bold text-red-400 mt-1 flex items-center gap-1">
-                <span>● Produto Indisponível</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                <span>● Produto Esgotado</span>
               </div>
-            ) : typeof product.stock === 'number' && product.stock <= 3 ? (
+            ) : parsedStock !== null && parsedStock <= 3 ? (
               <div className="text-[11px] font-bold text-amber-400 mt-1 flex items-center gap-1">
-                <span>⚡ Restam apenas {product.stock} un.!</span>
+                <span>⚡ Restam apenas {parsedStock} un.!</span>
               </div>
             ) : null}
           </div>

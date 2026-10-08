@@ -45,6 +45,7 @@ export default function AdminProductModal({
     price_number: 120.00,
     compare_price: '',
     stock: 10,
+    isActive: true,
     description: '',
     images: [],
     colors: [],
@@ -67,7 +68,10 @@ export default function AdminProductModal({
         category: productToEdit.category || 'Geral',
         price_number: productToEdit.price_number || 0,
         compare_price: productToEdit.compare_price || '',
-        stock: typeof productToEdit.stock === 'number' ? productToEdit.stock : 10,
+        stock: productToEdit.stock !== undefined && productToEdit.stock !== null && productToEdit.stock !== ''
+          ? Number(productToEdit.stock)
+          : 10,
+        isActive: productToEdit.isActive !== false,
         description: productToEdit.description || '',
         images: productToEdit.images ? [...productToEdit.images] : [],
         colors: productToEdit.colors ? [...productToEdit.colors] : [],
@@ -81,6 +85,7 @@ export default function AdminProductModal({
         price_number: 145.00,
         compare_price: '',
         stock: 10,
+        isActive: true,
         description: '',
         images: ['https://dcdn-us.mitiendanube.com/stores/007/383/278/products/img_9280-b6b9e72ef2fd51ab3617884043933298-1024-1024.webp'],
         colors: [
@@ -250,9 +255,10 @@ export default function AdminProductModal({
       price: formatBRL(priceNum),
       price_number: priceNum,
       compare_price: formData.compare_price.trim() ? formData.compare_price.trim() : '',
-      pix_price: formatBRL(priceNum * 0.99),
-      installments: `12x de ${formatBRL((priceNum * 1.235) / 12)}`,
-      stock: Math.max(0, parseInt(formData.stock) || 0),
+      pix_price: formatBRL(priceNum),
+      installments: `12x de ${formatBRL((priceNum * 1.235) / 12)} (1x com juros)`,
+      stock: Math.max(0, isNaN(parseInt(formData.stock, 10)) ? 0 : parseInt(formData.stock, 10)),
+      isActive: formData.isActive !== false,
       description: formData.description.trim(),
       images: formData.images.length > 0
         ? formData.images
@@ -294,9 +300,26 @@ export default function AdminProductModal({
           
           {/* 1. Informações Básicas */}
           <div className="p-4 rounded-xl bg-black/40 border border-brand-border space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-gold">
-              1. Informações Principais
-            </h3>
+            <div className="flex items-center justify-between pb-2 border-b border-brand-border/60">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-brand-gold">
+                1. Informações Principais
+              </h3>
+              
+              {/* Product Active / Inactive Visibility Switch */}
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isActive: formData.isActive === false })}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                  formData.isActive !== false
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                    : 'bg-red-500/20 text-red-300 border-red-500/40 hover:bg-red-500/30'
+                }`}
+                title="Clique para alternar se o produto aparece ou não para visitantes no site"
+              >
+                <span className={`w-2 h-2 rounded-full ${formData.isActive !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                <span>{formData.isActive !== false ? 'Ativo na Loja' : 'Desativado (Oculto)'}</span>
+              </button>
+            </div>
 
             <div>
               <label className="text-xs font-medium text-gray-300 block mb-1">
@@ -388,8 +411,8 @@ export default function AdminProductModal({
 
             <div className="p-3 bg-black/60 rounded-lg border border-brand-border text-xs text-gray-400 flex flex-wrap gap-4 items-center justify-between">
               <div className="flex flex-wrap gap-4">
-                <span>Pix com 1% OFF: <strong className="text-brand-pix">{formatBRL(formData.price_number * 0.99)}</strong></span>
-                <span>Parcelamento: <strong className="text-white">12x de {formatBRL((formData.price_number * 1.235) / 12)}</strong></span>
+                <span>Pix: <strong className="text-brand-pix">{formatBRL(formData.price_number)}</strong></span>
+                <span>Cartão: <strong className="text-white">12x de {formatBRL((formData.price_number * 1.235) / 12)} (1x com juros)</strong></span>
               </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold">
                 <span>Status Estoque:</span>

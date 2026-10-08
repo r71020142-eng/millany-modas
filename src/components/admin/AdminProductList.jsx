@@ -12,11 +12,13 @@ export default function AdminProductList({
   onEditProduct,
   onDeleteProduct,
   onDuplicateProduct,
-  onUpdateStock
+  onUpdateStock,
+  onToggleProductStatus
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [stockFilter, setStockFilter] = useState('all'); // 'all' | 'in_stock' | 'out_of_stock'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'inactive'
 
   const filtered = products.filter((p) => {
     const matchesSearch =
@@ -25,30 +27,48 @@ export default function AdminProductList({
     const matchesCategory =
       categoryFilter === 'Todos' ||
       p.category.toLowerCase() === categoryFilter.toLowerCase();
-    const stockNum = typeof p.stock === 'number' ? p.stock : 10;
+    const stockNum = p.stock !== undefined && p.stock !== null && p.stock !== '' ? Number(p.stock) : 10;
     const matchesStock =
       stockFilter === 'all' ||
       (stockFilter === 'out_of_stock' ? stockNum <= 0 : stockNum > 0);
-    return matchesSearch && matchesCategory && matchesStock;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' ? p.isActive !== false : p.isActive === false);
+    return matchesSearch && matchesCategory && matchesStock && matchesStatus;
   });
 
   const totalValue = products.reduce((acc, p) => acc + (p.price_number || 0), 0);
   const avgPrice = products.length > 0 ? totalValue / products.length : 0;
   const promoCount = products.filter((p) => p.compare_price && p.compare_price !== 'R$0,00').length;
-  const outOfStockCount = products.filter((p) => (p.stock || 0) <= 0).length;
+  const outOfStockCount = products.filter((p) => {
+    const num = p.stock !== undefined && p.stock !== null && p.stock !== '' ? Number(p.stock) : 10;
+    return num <= 0;
+  }).length;
+  const activeCount = products.filter((p) => p.isActive !== false).length;
+  const inactiveCount = products.filter((p) => p.isActive === false).length;
 
   return (
     <div className="space-y-6 text-left">
       
       {/* 1. Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
-          <span className="text-xs text-gray-400 block">Total de Produtos</span>
+          <span className="text-xs text-gray-400 block">Total</span>
           <span className="text-2xl font-serif text-white font-bold">{products.length}</span>
         </div>
         <div className="p-4 rounded-xl bg-brand-card border border-brand-border">
-          <span className="text-xs text-gray-400 block">Em Promoção</span>
-          <span className="text-2xl font-serif text-brand-rose-light font-bold">{promoCount}</span>
+          <span className="text-xs text-gray-400 block">Ativos no Site</span>
+          <span className="text-2xl font-serif text-emerald-400 font-bold">{activeCount}</span>
+        </div>
+        <div className={`p-4 rounded-xl border transition-colors ${
+          inactiveCount > 0 ? 'bg-zinc-900/60 border-zinc-700' : 'bg-brand-card border-brand-border'
+        }`}>
+          <span className="text-xs text-gray-400 block">Desativados</span>
+          <span className={`text-2xl font-serif font-bold ${
+            inactiveCount > 0 ? 'text-zinc-400' : 'text-gray-500'
+          }`}>
+            {inactiveCount}
+          </span>
         </div>
         <div className={`p-4 rounded-xl border transition-colors ${
           outOfStockCount > 0 ? 'bg-red-950/30 border-red-500/40' : 'bg-brand-card border-brand-border'
@@ -87,6 +107,17 @@ export default function AdminProductList({
 
         {/* Filters & Actions */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-black/60 text-white text-xs px-3 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none cursor-pointer"
+          >
+            <option value="all">Todos Status</option>
+            <option value="active">Somente Ativos ({activeCount})</option>
+            <option value="inactive">Somente Desativados ({inactiveCount})</option>
+          </select>
+
           {/* Stock Filter */}
           <select
             value={stockFilter}
@@ -139,6 +170,7 @@ export default function AdminProductList({
             <thead className="bg-black/60 text-gray-400 uppercase text-[11px] tracking-wider border-b border-brand-border font-semibold">
               <tr>
                 <th className="py-3.5 px-4">Produto</th>
+                <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4">Categoria</th>
                 <th className="py-3.5 px-4">Preço</th>
                 <th className="py-3.5 px-4">Estoque</th>
@@ -150,7 +182,7 @@ export default function AdminProductList({
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400">
+                  <td colSpan={8} className="text-center py-12 text-gray-400">
                     Nenhum produto encontrado com os filtros atuais.
                   </td>
                 </tr>
@@ -191,6 +223,23 @@ export default function AdminProductList({
                       </div>
                     </td>
 
+                    {/* Status Column */}
+                    <td className="py-3 px-4">
+                      <button
+                        type="button"
+                        onClick={() => onToggleProductStatus && onToggleProductStatus(product.id)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all border ${
+                          product.isActive !== false
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                            : 'bg-red-500/20 text-red-300 border-red-500/40 hover:bg-red-500/30'
+                        }`}
+                        title={product.isActive !== false ? 'Clique para desativar e ocultar da loja' : 'Clique para ativar e exibir na loja'}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${product.isActive !== false ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                        <span>{product.isActive !== false ? 'Ativo' : 'Desativado'}</span>
+                      </button>
+                    </td>
+
                     {/* Category */}
                     <td className="py-3 px-4">
                       <span className="px-2.5 py-1 rounded-full bg-brand-card border border-brand-border text-[11px] text-gray-300">
@@ -209,55 +258,65 @@ export default function AdminProductList({
                         </div>
                       )}
                       <div className="text-[10px] text-brand-pix">
-                        Pix: {product.pix_price}
+                        Pix: {product.pix_price || formatBRL(product.price_number)}
                       </div>
                     </td>
 
                     {/* Stock Column */}
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center border border-brand-border rounded-lg bg-black/60 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => onUpdateStock && onUpdateStock(product.id, Math.max(0, (product.stock || 0) - 1))}
-                            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
-                            title="Diminuir estoque (-1)"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            min="0"
-                            value={typeof product.stock === 'number' ? product.stock : 10}
-                            onChange={(e) => onUpdateStock && onUpdateStock(product.id, Math.max(0, parseInt(e.target.value) || 0))}
-                            className={`w-12 bg-transparent text-center text-xs font-mono font-bold py-1 focus:outline-none focus:bg-white/5 ${
-                              (product.stock || 0) <= 0 ? 'text-red-400' : 'text-white'
-                            }`}
-                            title="Editar quantidade"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => onUpdateStock && onUpdateStock(product.id, (product.stock || 0) + 1)}
-                            className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
-                            title="Aumentar estoque (+1)"
-                          >
-                            +
-                          </button>
-                        </div>
-                        {(product.stock || 0) <= 0 ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40 whitespace-nowrap">
-                            Sem Estoque
-                          </span>
-                        ) : (product.stock || 0) <= 3 ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 whitespace-nowrap">
-                            Baixo
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 whitespace-nowrap">
-                            OK
-                          </span>
-                        )}
-                      </div>
+                      {(() => {
+                        const currentStock = product.stock !== undefined && product.stock !== null && product.stock !== ''
+                          ? Number(product.stock)
+                          : 10;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center border border-brand-border rounded-lg bg-black/60 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => onUpdateStock && onUpdateStock(product.id, Math.max(0, currentStock - 1))}
+                                className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
+                                title="Diminuir estoque (-1)"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={currentStock}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                                  onUpdateStock && onUpdateStock(product.id, isNaN(val) ? 0 : Math.max(0, val));
+                                }}
+                                className={`w-12 bg-transparent text-center text-xs font-mono font-bold py-1 focus:outline-none focus:bg-white/5 ${
+                                  currentStock <= 0 ? 'text-red-400 font-extrabold' : 'text-white'
+                                }`}
+                                title="Editar quantidade"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => onUpdateStock && onUpdateStock(product.id, currentStock + 1)}
+                                className="px-2 py-1 text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-bold"
+                                title="Aumentar estoque (+1)"
+                              >
+                                +
+                              </button>
+                            </div>
+                            {currentStock <= 0 ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40 whitespace-nowrap">
+                                Sem Estoque
+                              </span>
+                            ) : currentStock <= 3 ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 whitespace-nowrap">
+                                Baixo ({currentStock})
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 whitespace-nowrap">
+                                OK ({currentStock})
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Variations */}

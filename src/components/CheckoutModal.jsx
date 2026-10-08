@@ -570,7 +570,9 @@ export default function CheckoutModal({
                           )}
                         </div>
                         <p className="text-[11px] text-gray-400">
-                          Aprovação imediata e desconto de {paymentSettings?.pix?.discountPercent || 1}% aplicado no pedido.
+                          {(paymentSettings?.pix?.discountPercent || 0) > 0
+                            ? `Aprovação imediata e desconto de ${paymentSettings.pix.discountPercent}% aplicado no pedido.`
+                            : 'Aprovação e liberação imediata do seu pedido.'}
                         </p>
                       </div>
                     )}
@@ -595,7 +597,9 @@ export default function CheckoutModal({
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-400">
-                          Parcelamento em até {paymentSettings?.creditCard?.maxInstallments || 12}x ({paymentSettings?.creditCard?.interestFreeInstallments || 3}x sem juros).
+                          {Number(paymentSettings?.creditCard?.interestFreeInstallments) > 1
+                            ? `Parcelamento em até ${paymentSettings?.creditCard?.maxInstallments || 12}x (${paymentSettings?.creditCard?.interestFreeInstallments}x sem juros).`
+                            : `Parcelamento em até ${paymentSettings?.creditCard?.maxInstallments || 12}x (1x com juros).`}
                         </p>
                       </div>
                     )}
@@ -659,7 +663,9 @@ export default function CheckoutModal({
                           <CreditCard className="w-4 h-4 text-blue-400" /> Pagamento com Cartão de Crédito
                         </span>
                         <span className="text-gray-300 text-[11px]">
-                          Até {paymentSettings?.creditCard?.interestFreeInstallments || 3}x sem juros
+                          {Number(paymentSettings?.creditCard?.interestFreeInstallments) > 1
+                            ? `Até ${paymentSettings.creditCard.interestFreeInstallments}x sem juros`
+                            : '1x com juros'}
                         </span>
                       </div>
 

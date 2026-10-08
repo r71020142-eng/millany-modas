@@ -106,11 +106,21 @@ export default function AdminDashboard({
   };
 
   const handleUpdateProductStock = (productId, newStock) => {
+    const stockNum = isNaN(parseInt(newStock, 10)) ? 0 : Math.max(0, parseInt(newStock, 10));
     const updated = products.map((p) =>
-      p.id === productId ? { ...p, stock: Math.max(0, parseInt(newStock) || 0) } : p
+      p.id === productId ? { ...p, stock: stockNum } : p
     );
     onSaveProducts(updated);
-    showToast('Estoque atualizado!');
+    showToast(stockNum === 0 ? 'Estoque zerado! Produto marcado como esgotado.' : 'Estoque atualizado!');
+  };
+
+  const handleToggleProductStatus = (productId) => {
+    const updated = products.map((p) =>
+      p.id === productId ? { ...p, isActive: p.isActive === false ? true : false } : p
+    );
+    onSaveProducts(updated);
+    const target = updated.find((p) => p.id === productId);
+    showToast(target?.isActive !== false ? 'Produto ativado no site!' : 'Produto desativado (oculto para visitantes)!');
   };
 
   // Export / Import
@@ -385,6 +395,7 @@ export default function AdminDashboard({
             onDeleteProduct={handleDeleteProduct}
             onDuplicateProduct={handleDuplicateProduct}
             onUpdateStock={handleUpdateProductStock}
+            onToggleProductStatus={handleToggleProductStatus}
           />
         )}
 

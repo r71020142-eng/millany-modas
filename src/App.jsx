@@ -74,10 +74,16 @@ export default function App() {
       localStorage.removeItem('millany_admin_products_v2');
       const saved = localStorage.getItem('millany_admin_products_v3');
       const loaded = saved ? JSON.parse(saved) : PRODUCTS;
-      return loaded.map((p, idx) => ({
-        ...p,
-        stock: typeof p.stock === 'number' ? p.stock : (idx === 4 ? 0 : 12)
-      }));
+      return loaded.map((p, idx) => {
+        const stockVal = p.stock !== undefined && p.stock !== null && p.stock !== ''
+          ? Number(p.stock)
+          : (idx === 4 ? 0 : 12);
+        return {
+          ...p,
+          stock: isNaN(stockVal) ? 12 : stockVal,
+          isActive: p.isActive !== false
+        };
+      });
     } catch {
       return PRODUCTS;
     }
@@ -228,6 +234,12 @@ export default function App() {
         if (parsed.pix?.key === '31986570126') {
           parsed.pix.key = '3180393768';
         }
+        if (parsed.pix) {
+          parsed.pix.discountPercent = 0; // 0% desconto no Pix conforme solicitado
+        }
+        if (parsed.creditCard) {
+          parsed.creditCard.interestFreeInstallments = 0; // 1x com juros conforme solicitado
+        }
         return parsed;
       }
       return DEFAULT_PAYMENT_SETTINGS;
@@ -310,8 +322,18 @@ export default function App() {
         if (!isMounted || !remote) return;
 
         if (Array.isArray(remote.products) && remote.products.length > 0) {
-          setProducts(remote.products);
-          localStorage.setItem('millany_admin_products_v3', JSON.stringify(remote.products));
+          const sanitized = remote.products.map((p) => {
+            const stockVal = p.stock !== undefined && p.stock !== null && p.stock !== ''
+              ? Number(p.stock)
+              : 10;
+            return {
+              ...p,
+              stock: isNaN(stockVal) ? 10 : stockVal,
+              isActive: p.isActive !== false
+            };
+          });
+          setProducts(sanitized);
+          localStorage.setItem('millany_admin_products_v3', JSON.stringify(sanitized));
         }
         if (Array.isArray(remote.categories) && remote.categories.length > 0) {
           setCategories(remote.categories);
@@ -326,8 +348,11 @@ export default function App() {
           localStorage.setItem('millany_admin_store_info_v2', JSON.stringify(remote.storeInfo));
         }
         if (remote.paymentSettings && typeof remote.paymentSettings === 'object') {
-          setPaymentSettings(remote.paymentSettings);
-          localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(remote.paymentSettings));
+          const ps = { ...remote.paymentSettings };
+          if (ps.pix) ps.pix.discountPercent = 0;
+          if (ps.creditCard) ps.creditCard.interestFreeInstallments = 0;
+          setPaymentSettings(ps);
+          localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(ps));
         }
         if (Array.isArray(remote.crmOrders)) {
           setCrmOrders(remote.crmOrders);
@@ -344,8 +369,18 @@ export default function App() {
     const unsubscribe = subscribeToStoreSync((remote) => {
       if (!isMounted || !remote) return;
       if (Array.isArray(remote.products)) {
-        setProducts(remote.products);
-        localStorage.setItem('millany_admin_products_v3', JSON.stringify(remote.products));
+        const sanitized = remote.products.map((p) => {
+          const stockVal = p.stock !== undefined && p.stock !== null && p.stock !== ''
+            ? Number(p.stock)
+            : 10;
+          return {
+            ...p,
+            stock: isNaN(stockVal) ? 10 : stockVal,
+            isActive: p.isActive !== false
+          };
+        });
+        setProducts(sanitized);
+        localStorage.setItem('millany_admin_products_v3', JSON.stringify(sanitized));
       }
       if (Array.isArray(remote.categories)) {
         setCategories(remote.categories);
@@ -360,8 +395,11 @@ export default function App() {
         localStorage.setItem('millany_admin_store_info_v2', JSON.stringify(remote.storeInfo));
       }
       if (remote.paymentSettings) {
-        setPaymentSettings(remote.paymentSettings);
-        localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(remote.paymentSettings));
+        const ps = { ...remote.paymentSettings };
+        if (ps.pix) ps.pix.discountPercent = 0;
+        if (ps.creditCard) ps.creditCard.interestFreeInstallments = 0;
+        setPaymentSettings(ps);
+        localStorage.setItem('millany_admin_payment_settings_v1', JSON.stringify(ps));
       }
       if (Array.isArray(remote.crmOrders)) {
         setCrmOrders(remote.crmOrders);
@@ -609,7 +647,12 @@ export default function App() {
 
   // Cart operations
   const handleAddToCart = (productToAdd) => {
-    if (typeof productToAdd.stock === 'number' && productToAdd.stock <= 0) {
+    const parsedStock = productToAdd.stock !== undefined && productToAdd.stock !== null && productToAdd.stock !== ''
+      ? Number(productToAdd.stock)
+      : null;
+    const isOutOfStock = (parsedStock !== null && !isNaN(parsedStock) && parsedStock <= 0) || productToAdd.inStock === false;
+
+    if (isOutOfStock) {
       alert('Este produto está sem estoque no momento.');
       return;
     }
@@ -624,7 +667,7 @@ export default function App() {
 
       if (existingIdx > -1) {
         const next = [...prevItems];
-        const maxStock = typeof productToAdd.stock === 'number' ? productToAdd.stock : 99;
+        const maxStock = parsedStock !== null && !isNaN(parsedStock) ? parsedStock : 99;
         const newQty = (next[existingIdx].quantity || 1) + (productToAdd.quantity || 1);
         next[existingIdx].quantity = Math.min(maxStock, newQty);
         return next;
@@ -662,7 +705,8 @@ export default function App() {
 
   // Filtered & Sorted products (uses dynamic products)
   const filteredProducts = useMemo(() => {
-    let list = products;
+    // Only active products are visible on the customer storefront
+    let list = products.filter((p) => p.isActive !== false);
 
     if (activeCategory && activeCategory !== 'Todos') {
       if (activeCategory === 'Promoção') {

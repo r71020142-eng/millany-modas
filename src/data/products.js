@@ -1347,7 +1347,8 @@ const RAW_PRODUCTS = [
 
 export const PRODUCTS = RAW_PRODUCTS.map((p, idx) => ({
   ...p,
-  stock: typeof p.stock === 'number' ? p.stock : (idx === 4 ? 0 : 12)
+  stock: typeof p.stock === 'number' ? p.stock : (idx === 4 ? 0 : 12),
+  isActive: true
 }));
 
 

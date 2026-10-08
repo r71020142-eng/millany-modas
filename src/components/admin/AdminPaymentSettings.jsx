@@ -433,21 +433,22 @@ export default function AdminPaymentSettings({
               Parcelas Sem Juros *
             </label>
             <select
-              value={settings.creditCard.interestFreeInstallments}
+              value={settings.creditCard.interestFreeInstallments ?? 0}
               onChange={(e) =>
                 setSettings((prev) => ({
                   ...prev,
                   creditCard: {
                     ...prev.creditCard,
-                    interestFreeInstallments: parseInt(e.target.value) || 1
+                    interestFreeInstallments: parseInt(e.target.value, 10)
                   }
                 }))
               }
               className="w-full bg-brand-card text-white px-3 py-2.5 rounded-lg border border-brand-border focus:border-brand-rose focus:outline-none font-medium text-brand-gold"
             >
-              <option value={1}>1x (Somente à vista sem juros)</option>
+              <option value={0}>1x com juros (Todas as parcelas com juros)</option>
+              <option value={1}>1x com juros</option>
               <option value={2}>Até 2x sem juros</option>
-              <option value={3}>Até 3x sem juros (Recomendado)</option>
+              <option value={3}>Até 3x sem juros</option>
               <option value={4}>Até 4x sem juros</option>
               <option value={5}>Até 5x sem juros</option>
               <option value={6}>Até 6x sem juros</option>
