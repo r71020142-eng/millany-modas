@@ -19,6 +19,7 @@ import { DEFAULT_PAYMENT_SETTINGS } from './data/paymentSettings';
 import {
   fetchRemoteStoreStatus,
   saveRemoteStoreStatus,
+  subscribeToStoreStatus,
   getLocalStoreStatus
 } from './services/storeStatusSync';
 import {
@@ -280,11 +281,10 @@ export default function App() {
   const [storeStatus, setStoreStatus] = useState(() => getLocalStoreStatus());
   const [isAdminPreviewingStore, setIsAdminPreviewingStore] = useState(false);
 
-  // Synchronize store status across all devices and visitors
+  // Synchronize store status across all devices and visitors in real-time via Supabase
   useEffect(() => {
     let isMounted = true;
-    const syncStatus = async () => {
-      const remote = await fetchRemoteStoreStatus();
+    const unsubscribe = subscribeToStoreStatus((remote) => {
       if (isMounted && remote && typeof remote.isPaused === 'boolean') {
         setStoreStatus((prev) => {
           if (
@@ -298,17 +298,11 @@ export default function App() {
           return prev;
         });
       }
-    };
-
-    syncStatus();
-    const interval = setInterval(syncStatus, 4000);
-    const onFocus = () => syncStatus();
-    window.addEventListener('focus', onFocus);
+    });
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
+      unsubscribe();
     };
   }, []);
 
@@ -406,7 +400,7 @@ export default function App() {
         localStorage.setItem('millany_admin_crm_orders_v1', JSON.stringify(remote.crmOrders));
       }
       setCloudSyncState('synced');
-    }, 15000);
+    });
 
     return () => {
       isMounted = false;

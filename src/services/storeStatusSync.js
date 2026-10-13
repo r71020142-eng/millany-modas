@@ -1,20 +1,21 @@
 import { DEFAULT_STORE_STATUS } from '../data/storeStatus';
+import { supabase } from './supabaseClient';
 
 const CLOUD_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a116792823170a';
 
 // Fetch the current global status of the store
 export async function fetchRemoteStoreStatus() {
-  // 1. Try local or Vercel serverless /api/store-status
+  // 1. Try Supabase
   try {
-    const res = await fetch('/api/store-status', {
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && typeof data.isPaused === 'boolean') {
-        saveLocalStoreStatus(data);
-        return data;
-      }
+    const { data, error } = await supabase
+      .from('store_catalog')
+      .select('data')
+      .eq('id', 'status')
+      .maybeSingle();
+
+    if (!error && data && data.data && typeof data.data.isPaused === 'boolean') {
+      saveLocalStoreStatus(data.data);
+      return data.data;
     }
   } catch (err) {
     // Continue to fallback
@@ -40,20 +41,24 @@ export async function fetchRemoteStoreStatus() {
   return getLocalStoreStatus();
 }
 
-// Persist the status locally and globally to all devices
+// Persist the status locally and globally to all devices via Supabase
 export async function saveRemoteStoreStatus(newStatus) {
   saveLocalStoreStatus(newStatus);
 
-  // Send to /api/store-status
+  // 1. Save to Supabase (primary)
   try {
-    fetch('/api/store-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newStatus)
-    }).catch(() => {});
-  } catch (e) {}
+    await supabase
+      .from('store_catalog')
+      .upsert({
+        id: 'status',
+        data: newStatus,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+  } catch (e) {
+    console.warn('Supabase store status save error:', e);
+  }
 
-  // Also send directly to cloud endpoint so Vercel & all devices get it
+  // 2. Also send to backup cloud endpoint
   try {
     fetch(CLOUD_URL, {
       method: 'PUT',
@@ -66,6 +71,61 @@ export async function saveRemoteStoreStatus(newStatus) {
   } catch (e) {}
 
   return newStatus;
+}
+
+/**
+ * Subscribes to store status changes via Supabase Realtime WebSockets.
+ * Instant store pause/unpause without polling!
+ */
+export function subscribeToStoreStatus(onUpdate) {
+  let isSubscribed = true;
+
+  // 1. Initial fetch
+  fetchRemoteStoreStatus().then((status) => {
+    if (isSubscribed && status) {
+      onUpdate(status);
+    }
+  });
+
+  // 2. Realtime WebSocket channel for instant status changes
+  const channel = supabase
+    .channel('millany_status_realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'store_catalog',
+        filter: 'id=eq.status'
+      },
+      (payload) => {
+        if (!isSubscribed) return;
+        const newRecord = payload.new;
+        if (newRecord && newRecord.data && typeof newRecord.data.isPaused === 'boolean') {
+          saveLocalStoreStatus(newRecord.data);
+          onUpdate(newRecord.data);
+        }
+      }
+    )
+    .subscribe();
+
+  // 3. Focus listener
+  const onFocus = async () => {
+    if (!isSubscribed) return;
+    try {
+      const status = await fetchRemoteStoreStatus();
+      if (status && typeof status.isPaused === 'boolean') {
+        onUpdate(status);
+      }
+    } catch (e) {}
+  };
+  window.addEventListener('focus', onFocus);
+
+  return () => {
+    isSubscribed = false;
+    window.removeEventListener('focus', onFocus);
+    supabase.removeChannel(channel);
+  };
 }
 
 export function getLocalStoreStatus() {

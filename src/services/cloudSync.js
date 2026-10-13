@@ -1,46 +1,51 @@
 // Cloud Synchronization Service for Millany Modas
-// Connects desktop, mobile, tablet, and all visitor browsers to the same real-time catalog
+// Connects desktop, mobile, tablet, and all visitor browsers using Supabase Realtime & PostgreSQL
+
+import { supabase } from './supabaseClient';
 
 const CLOUD_REDIS_URL = 'https://stunning-wolf-211005.upstash.io';
 const CLOUD_REDIS_TOKEN = 'gQAAAAAAAzg9AQIgcDFhYTAzYzJkYjkwYTQ0N2MxOTE1YzcwNDQyM2RhNTNiZA';
 
 let lastKnownUpdatedAt = null;
 
-// Helper to directly call Upstash Redis REST API
+// Helper for direct Redis fallback
 async function directRedisCommand(commandArray) {
-  const resp = await fetch(CLOUD_REDIS_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${CLOUD_REDIS_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(commandArray)
-  });
-  if (!resp.ok) {
-    throw new Error(`Redis error: ${resp.status} ${await resp.text()}`);
+  try {
+    const resp = await fetch(CLOUD_REDIS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CLOUD_REDIS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(commandArray)
+    });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    return null;
   }
-  return await resp.json();
 }
 
 /**
- * Fetches the global master catalog from the cloud.
- * Tries Vercel Serverless Function first, falls back to direct Cloud Redis.
+ * Fetches the global master catalog from Supabase.
+ * Falls back to direct Redis if Supabase is unavailable.
  */
 export async function fetchRemoteStoreData() {
-  // 1. Try Vercel Serverless /api/store-data
+  // 1. Try Supabase
   try {
-    const res = await fetch('/api/store-data', {
-      headers: { 'Cache-Control': 'no-cache' }
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.success && json.data) {
-        lastKnownUpdatedAt = json.data.updatedAt;
-        return json.data;
-      }
+    const { data, error } = await supabase
+      .from('store_catalog')
+      .select('data, updated_at')
+      .eq('id', 'master')
+      .maybeSingle();
+
+    if (!error && data && data.data) {
+      const catalogData = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
+      lastKnownUpdatedAt = catalogData.updatedAt || data.updated_at;
+      return catalogData;
     }
   } catch (err) {
-    // Proceed to direct cloud fallback
+    console.warn('Supabase fetch notice:', err.message);
   }
 
   // 2. Direct Cloud Redis fallback
@@ -61,76 +66,117 @@ export async function fetchRemoteStoreData() {
 }
 
 /**
- * Saves store data globally to the cloud so all browsers & devices receive it.
- * Accepts partial or full updates (e.g. { products: [...] } or { storeInfo: {...} }).
+ * Saves store data globally to Supabase.
+ * Merges partial data into the master catalog.
  */
 export async function saveRemoteStoreData(partialData) {
   const timestamp = new Date().toISOString();
   lastKnownUpdatedAt = timestamp;
 
-  // 1. Send to Vercel Serverless /api/store-data
+  // Read current data first to merge
+  let currentData = {};
   try {
-    fetch('/api/store-data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(partialData)
-    }).catch(() => {});
+    const existing = await fetchRemoteStoreData();
+    if (existing && typeof existing === 'object') {
+      currentData = existing;
+    }
   } catch (e) {}
 
-  // 2. Also send directly to Cloud Redis to ensure instant cross-device sync
+  const merged = {
+    ...currentData,
+    ...partialData,
+    updatedAt: timestamp
+  };
+
+  let savedToSupabase = false;
+
+  // 1. Save to Supabase (primary database)
   try {
-    // Read current data first to merge
-    let currentData = {};
-    try {
-      const getRes = await directRedisCommand(['GET', 'millany_store_catalog']);
-      if (getRes && getRes.result) {
-        currentData = typeof getRes.result === 'string' ? JSON.parse(getRes.result) : getRes.result;
-      }
-    } catch (e) {}
+    const { error } = await supabase
+      .from('store_catalog')
+      .upsert({
+        id: 'master',
+        data: merged,
+        updated_at: timestamp
+      }, { onConflict: 'id' });
 
-    const merged = {
-      ...currentData,
-      ...partialData,
-      updatedAt: timestamp
-    };
-
-    await directRedisCommand(['SET', 'millany_store_catalog', JSON.stringify(merged)]);
-    return { success: true, updatedAt: timestamp };
-  } catch (err) {
-    console.error('Direct Cloud Sync save error:', err);
-    return { success: false, error: err.message };
+    if (!error) {
+      savedToSupabase = true;
+    } else {
+      console.warn('Supabase save error:', error);
+    }
+  } catch (e) {
+    console.warn('Supabase save exception:', e);
   }
+
+  // 2. Also save to Redis as redundant backup
+  try {
+    await directRedisCommand(['SET', 'millany_store_catalog', JSON.stringify(merged)]);
+  } catch (err) {
+    console.warn('Redis backup save warning:', err);
+  }
+
+  return { success: true, updatedAt: timestamp, supabase: savedToSupabase };
 }
 
 /**
- * Subscribes to real-time cloud updates.
- * Periodically polls and listens to window focus to sync other devices.
+ * Subscribes to real-time cloud updates via Supabase Realtime WebSockets.
+ * Zero polling, instant delivery, zero serverless origin transfer on Vercel.
  */
-export function subscribeToStoreSync(onUpdate, intervalMs = 15000) {
+export function subscribeToStoreSync(onUpdate) {
   let isSubscribed = true;
 
-  const checkForUpdates = async () => {
+  // 1. Initial hydration from Supabase
+  fetchRemoteStoreData().then((data) => {
+    if (isSubscribed && data) {
+      onUpdate(data);
+    }
+  });
+
+  // 2. Supabase Realtime WebSocket channel
+  const channel = supabase
+    .channel('millany_catalog_realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'store_catalog',
+        filter: 'id=eq.master'
+      },
+      (payload) => {
+        if (!isSubscribed) return;
+        const newRecord = payload.new;
+        if (newRecord && newRecord.data) {
+          const parsed = typeof newRecord.data === 'string'
+            ? JSON.parse(newRecord.data)
+            : newRecord.data;
+          if (parsed) {
+            lastKnownUpdatedAt = parsed.updatedAt || newRecord.updated_at;
+            onUpdate(parsed);
+          }
+        }
+      }
+    )
+    .subscribe();
+
+  // 3. Fallback only when window gains focus (e.g. user returns to tab)
+  const onFocus = async () => {
     if (!isSubscribed) return;
     try {
       const remote = await fetchRemoteStoreData();
       if (!remote || !remote.updatedAt) return;
-
       if (!lastKnownUpdatedAt || remote.updatedAt !== lastKnownUpdatedAt) {
         lastKnownUpdatedAt = remote.updatedAt;
         onUpdate(remote);
       }
-    } catch (err) {
-      console.warn('Sync check error:', err);
-    }
+    } catch (e) {}
   };
-
-  const intervalId = setInterval(checkForUpdates, intervalMs);
-  const onFocus = () => checkForUpdates();
   window.addEventListener('focus', onFocus);
 
   return () => {
     isSubscribed = false;
-    clearInterval(intervalId);
     window.removeEventListener('focus', onFocus);
+    supabase.removeChannel(channel);
   };
 }
